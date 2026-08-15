@@ -122,29 +122,33 @@ Full rehearsal plan: `development-plan.md` §4. If you're on Neon, hit the app a
 
 ## Deploy to Vercel
 
-The app is configured for Vercel's zero-config Django support (auto-detect via `manage.py`, auto-install of `requirements.txt`, automatic `collectstatic`).
+**Live: https://scholaris-lime.vercel.app** (already deployed, connected to GitHub — pushes to `main` auto-deploy).
 
-1. **Push this repo to GitHub** and import it at vercel.com → *Add New… → Project*.
-2. **Name the project `Scholaris`** so the production URL is **`scholaris.vercel.app`**.
-3. Add these **Environment Variables** (Settings → Environment Variables):
+> The clean `scholaris.vercel.app` is already taken globally, so Vercel assigned
+> `scholaris-lime.vercel.app` for this project. "Use only Scholaris" — no other
+> domains are attached; you can point a custom domain at the project later if you own one.
 
-   | Variable | Value |
-   |---|---|
-   | `DATABASE_URL` | the Neon **pooled** connection string (same one as local `.env`) |
-   | `SECRET_KEY` | the value from your local `.env` (or any long random string) |
-   | `DEBUG` | `0` |
-   | `ALLOWED_HOSTS` | `scholaris.vercel.app` (the default already allows `*.vercel.app`) |
-   | `ANTHROPIC_API_KEY` | optional — real AI question generation |
+The project is configured for Vercel's Django support (auto-detect via `manage.py`, auto-install of `requirements.txt`, automatic `collectstatic`, Python 3.12 pinned in `.python-version`).
 
-4. Deploy. Migrations are **not** run automatically — run them once against the shared DB:
-   ```bash
-   python manage.py migrate
-   python manage.py seed_demo_data
-   ```
-   (these hit the Neon DB via your local `.env`, and the deployed app reads the same data).
+Project env vars already set (production + preview):
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon **pooled** connection string (same as local `.env`) |
+| `SECRET_KEY` | random key (same as local `.env`) |
+| `DEBUG` | `0` |
+
+Deploying / re-deploying:
+- The GitHub repo is connected, so **pushing to `main` auto-deploys**.
+- Or from the CLI: `vercel --prod` (Vercel CLI must be logged in).
+- Migrations are **not** run automatically — run them once against the shared DB (they hit the Neon DB via your local `.env`; the deployed app reads the same data):
+  ```bash
+  python manage.py migrate
+  python manage.py seed_demo_data
+  ```
 
 **Notes**
-- One DB, everywhere: local dev and the Vercel deployment share the Neon database, so seeded data and demo accounts work identically on `scholaris.vercel.app`.
+- One DB, everywhere: local dev and the Vercel deployment share the Neon database, so seeded data and demo accounts work identically on the live site.
 - Uploaded material *files* are ephemeral on serverless disk; extracted text is stored in the DB so AI generation always works. For a persistent file store, add S3-compatible storage later.
 - Free-tier Neon cold-starts after idle — hit the app a few minutes before a live demo.
 

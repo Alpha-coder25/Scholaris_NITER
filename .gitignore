@@ -3,7 +3,12 @@ venv/
 __pycache__/
 *.py[cod]
 *.sqlite3
+
+# Environment (credentials) — .env.example stays tracked
 .env
+.env.local
+.env.production
+.env.development
 
 # Django
 media/
@@ -14,6 +19,12 @@ db.sqlite3
 node_modules/
 npm-debug.log*
 
+# Vercel
+.vercel
+
 # OS
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*
