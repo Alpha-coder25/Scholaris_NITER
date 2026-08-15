@@ -2,58 +2,62 @@
 
 ## 1. Approach
 
-Server-rendered **Django Templates + Tailwind CSS**, with **HTMX** (or light vanilla JS where HTMX doesn't fit) for the interactive pieces that need partial updates without a full page reload — chiefly the exam-taking flow and chat. This is the fastest path to a working, polished UI within a hackathon timeline, and it keeps the whole stack in Django rather than standing up a separate SPA build.
+Server-rendered **Django Templates + Tailwind CSS** with **vanilla JS** for the interactive pieces — no HTMX, no SPA framework. This is the fastest path to a working, polished UI within a hackathon timeline, and it keeps the whole stack in Django rather than standing up a separate build.
 
-Where a genuinely dynamic client-side experience is needed (the exam question timer specifically), a small dedicated JS module is used instead of forcing HTMX to do something it's not suited for.
+Small dedicated JS handles the genuinely dynamic bits: the exam question countdown (`exam_timer.js`, display-only — server enforcement described in `backend.md` §6), the role-first sign-up form toggle (show teacher vs. student fields), and the syllabus inline-edit row toggle.
 
 ## 2. Structure
 
 ```
 templates/
 ├── base.html                     # shared layout, Tailwind, nav by role
+├── dashboard/
+│   ├── landing.html              # public landing page: what/how/roles + animated AI-exam-flow demo
+│   ├── admin_dashboard.html      # institution dashboard
+│   ├── teacher_dashboard.html
+│   └── student_dashboard.html
 ├── accounts/
-│   └── login.html
+│   ├── login.html
+│   └── signup.html               # role-first: selector → role-specific fields (vanilla JS toggle)
 ├── admin/
-│   ├── dashboard.html
-│   ├── department_list.html
-│   ├── course_offering_assign.html   # assign teacher to course/semester
+│   ├── users.html                # People directory (filter by role/dept) + add
+│   ├── user_form.html            # add / edit teacher & student, password reset
+│   ├── students.html             # students grouped by year → department → section
+│   ├── syllabus.html             # dept + semester selector, course list with inline edit + delete
+│   ├── course_offerings.html     # assign teacher to course/semester/section
 │   └── analytics.html
 ├── teacher/
 │   ├── dashboard.html
 │   ├── course_detail.html
 │   ├── material_upload.html
-│   ├── question_review.html          # approve/edit AI-generated questions
-│   ├── exam_builder.html             # select questions, set timers, schedule
-│   ├── grading_queue.html            # grade CQ answers
-│   └── research_supervision.html
+│   ├── question_review.html      # approve/edit AI-generated questions
+│   ├── exam_builder.html         # select questions, set timers, schedule
+│   └── grading_queue.html        # grade CQ answers
 ├── student/
 │   ├── dashboard.html
 │   ├── course_detail.html
-│   ├── exam_take.html                # single-question full-screen exam view
-│   ├── exam_result.html
-│   ├── research_submit.html
-│   └── progress.html
-├── chat/
-│   └── chat_window.html
-└── partials/                          # HTMX-swapped fragments
-    ├── _question_card.html
-    ├── _timer.html
-    ├── _chat_message.html
-    └── _notice_item.html
+│   ├── exam_take.html            # single-question full-screen exam view
+│   └── exam_result.html
 
 static/
 ├── css/
-│   └── tailwind.css (built via Tailwind CLI/PostCSS)
+│   └── tailwind.css (built via Tailwind CLI, committed)
 └── js/
-    ├── exam_timer.js                 # per-question + overall countdown, heartbeat polling
-    ├── chat_socket.js                # WebSocket client for Channels
-    └── htmx_config.js
+    ├── exam_timer.js             # per-question + overall countdown, heartbeat polling
+    └── signup.js                 # role toggle + ID/prefix helper (or inline in signup.html)
 ```
 
 ## 3. Key Screens by Role
 
+### Public (no login)
+- **Landing page** (served at `/`): what Scholaris is, how it works (three-step explainer), a per-role **login guide** (Admin / Teacher / Student), and an **animated demo of the AI exam flow** (material → AI drafts → teacher approves → exam → timer). Buttons: **Log in** / **Sign up**.
+- **Role-first sign-up** (`/accounts/signup/`): "I am a…" selector (👨‍🏫 Teacher / 🎓 Student) reveals the matching fields. Students: name, username, email, department, **Student ID** (`CODE YYYYNNN`), batch (auto-fills from ID year), section. Teachers: name, username, email, department, Employee ID. Mismatched ID-prefix is rejected inline.
+
 ### Admin
-- **Course Offering Assignment**: form to pick department → course → semester → teacher; table of current assignments.
+- **People** (`/accounts/admin/users/`): directory of all teachers & students, filterable by role/department, add + edit per row (incl. password reset).
+- **Students by cohort** (`/accounts/admin/students/`): student list grouped **year → department → section** with per-section tables and counts.
+- **Syllabus** (`/admin/syllabus/`): department + semester (Semester 1–8) pickers; course table with inline edit and delete (blocked if assigned).
+- **Course Offering Assignment**: form to pick department → course → semester → teacher → section; table of current assignments.
 - **Analytics dashboard**: rating trend charts (aggregated only), research output counts, at-risk flags (Phase 2).
 
 ### Teacher
@@ -67,7 +71,7 @@ static/
   - Full-screen single question, large visible per-question countdown (color shifts as it nears zero), overall exam progress/time in a smaller persistent header.
   - Answer input (MCQ = radio buttons, CQ = textarea).
   - No "back" button, no way to view other questions — enforced both visually and by the API only returning the current question.
-  - On timer hit or explicit submit, the page auto-swaps (via HTMX or a controlled fetch) to the next question with a fresh timer.
+  - On timer hit or explicit submit, the page auto-swaps (via a controlled fetch to the next-question endpoint) to the next question with a fresh timer.
 - **Results screen**: MCQ score shown immediately, CQ marked "pending teacher review" until graded, then full score.
 - **Progress dashboard**: attendance + assignment + exam performance in one view (Phase 2 adds AI gap-analysis on top of this same screen).
 
@@ -96,6 +100,8 @@ This client timer is purely for **display and UX** (the visible countdown, color
 ## 5. Tailwind Usage Notes
 
 - Shared design tokens (colors, spacing) defined once in `tailwind.config.js`; role-based nav bars use a consistent shell (`base.html`) with a distinct accent color per role (Admin/Teacher/Student) for quick visual orientation during the demo.
+- The admin nav links: Dashboard · People · Students · Syllabus · Assign Courses · Analytics (the two new People/Students links were added with the account-management feature).
+- An accessibility pass (Lighthouse) fixed low-contrast text (`text-slate-400` → `500/600`, `text-violet-500` → `600`) so the site scores **Accessibility 100** on the live deployment.
 - Exam screen intentionally minimal/high-contrast (large timer, large question text, no distracting nav) to read clearly on a projector during the live demo.
 
 ## 6. Chat (WebSocket client)

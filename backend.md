@@ -5,24 +5,26 @@
 Django project split into apps by domain, each with its own models/views/serializers/urls. This keeps the exam system (the MVP centerpiece) isolated and easy to develop/demo independently of less-critical modules.
 
 ```
-scholaris/
-├── manage.py
-├── scholaris/                  # project settings
-│   ├── settings.py
-│   ├── urls.py
-│   ├── celery.py
-│   └── asgi.py              # Channels entrypoint
-├── accounts/                # custom User model, auth, roles
-├── academics/                # department, semester, course, course_offering, enrollment, notice
-├── materials/                # material uploads
-├── exams/                    # question bank, exam, exam_attempt, exam_answer, grading
-├── assignments/               # assignment, submission
-├── research/                  # research_project, research_stage_log, publication
-├── chat/                      # chat_group, chat_message, Channels consumers
-├── ratings/                   # rating, aggregation logic
-├── ai_integration/            # Claude API client, question-generation service
-└── dashboard/                  # cross-app analytics views (admin/teacher/student dashboards)
+scholaris/                  # project settings package (settings.py, urls.py, wsgi.py)
+├── manage.py                 # repo root = Django project root (Vercel auto-detect)
+├── scholaris/                # settings, root URLconf
+├── accounts/                # custom User (role, batch, section), auth, role-first signup, admin People CRUD
+├── academics/               # department, semester (1–8), course (+semester), course_offering, enrollment, syllabus CRUD
+├── materials/               # versioned material uploads (+ extracted text cached in DB)
+├── exams/                   # question bank, exam builder, exam engine, grading
+│   └── services.py          # server-authoritative timer enforcement
+├── ratings/                 # rating, private aggregation with threshold gating
+├── ai_integration/          # Claude service + offline question generator
+├── dashboard/               # role dashboards, course pages, admin analytics, seed commands
+├── templates/               # Tailwind templates by role (incl. landing, admin users/students/syllabus)
+├── static/                  # built CSS + exam_timer.js
+├── loadtest/                # locustfile.py (load & stress)
+├── dast_probe.py            # dynamic security probe (DAST)
+├── verify_demo.py           # HTTP-level end-to-end regression (56 checks)
+└── .github/workflows/ci.yml # tests + SAST + audits on every push
 ```
+
+Modules from the original plan that were **cut or deferred** (roadmap only): `assignments`, `research`, `chat`, `notice`. Their features are not built in the MVP.
 
 ### 1.1 Database Connection (Neon, Serverless Postgres)
 
@@ -41,6 +43,8 @@ DATABASES = {
 }
 ```
 
+If `DATABASE_URL` is **unset**, the app falls back to a zero-config local **SQLite** database — a fresh clone runs with no external services.
+
 **Notes specific to Neon's free tier:**
 - Use Neon's **pooled connection string** (the one with `-pooler` in the hostname, PgBouncer transaction-mode pooling) for `DATABASE_URL` — both Django and Celery workers connect through it. The unpooled/direct connection string is only needed for tooling that requires session-level features (e.g. some migration operations), and should be reserved for the `manage.py migrate` step, not the running app.
 - `conn_max_age=0` (i.e., don't let Django hold persistent connections open) is deliberate here — a serverless Postgres backend with a strict free-tier connection cap plays better with short-lived pooled connections than with Django's default connection reuse, especially once Celery workers are also connecting.
@@ -51,8 +55,8 @@ DATABASES = {
 
 | App | Responsibility |
 |---|---|
-| `accounts` | Custom `User` model (role field), auth, permission classes (`IsAdmin`, `IsTeacher`, `IsStudent`, `IsEnrolledOrTeacher`) |
-| `academics` | Department/Semester/Course/CourseOffering/Enrollment CRUD; admin's teacher-assignment flow; notices |
+| `accounts` | Custom `User` model (role, `batch`, `section`, `student_id_no`/`employee_id`), session auth, **role-first sign-up** (role selector → role-specific fields + NITER ID validation), role decorators, **admin People CRUD** (user directory, add/edit, password reset, students grouped by year → department → section) |
+| `academics` | Department / Semester (1–8) / Course / CourseOffering / Enrollment; **admin Syllabus CRUD** (courses per department × semester, delete blocked when assigned); admin's teacher-assignment flow |
 | `materials` | File upload/versioning, scoped access by enrollment |
 | `exams` | Question bank, exam build/schedule, **exam-taking API with server-side timer enforcement**, auto-grading (MCQ), manual grading (CQ), gradebook |
 | `assignments` | Assignment CRUD, submission accept/refuse workflow |
@@ -83,6 +87,8 @@ Every model that hangs off a `course_offering` (materials, exams, assignments, q
 
 ## 4. Exam System — API Design (MVP Core)
 
+*Implementation note: these are Django **function-based views** returning JSON (no DRF viewsets in the MVP), guarded by role decorators (`@role_required('teacher')` etc.) rather than DRF permission classes. The permission model in §3 is unchanged in spirit.*
+
 | Endpoint | Method | Role | Purpose |
 |---|---|---|---|
 | `/api/course-offerings/{id}/materials/` | POST | Teacher | Upload material |
@@ -108,8 +114,10 @@ Every model that hangs off a `course_offering` (materials, exams, assignments, q
 # ai_integration/services.py
 def generate_questions_from_material(material, num_mcq=5, num_cq=2):
     """
-    Called only from a Celery task, never directly from a request/response cycle.
-    Sends only the given material's extracted text to the Claude API.
+    Thin service layer — the exact code a Celery task would call, run
+    synchronously so the app has zero external-service dependencies.
+    Sends only the given material's extracted text to the Claude API
+    (or the offline deterministic generator when ANTHROPIC_API_KEY is empty).
     Returns a structured JSON list of draft Question objects with source='ai_generated'
     and approved_by=None until a teacher reviews them.
     """
@@ -117,24 +125,32 @@ def generate_questions_from_material(material, num_mcq=5, num_cq=2):
 - Structured JSON output requested from the model (question text, type, options, correct answer for MCQ) — parsed and stored as `Question` rows with `source='ai_generated'`.
 - Nothing is shown to students until `approved_by` is set by a teacher action.
 - API key stored server-side only (environment variable), never sent to the client.
+- **Offline fallback**: without an API key, a deterministic extractive generator builds draft questions from the material text — the full human-in-the-loop review flow demos with no network.
 
-## 6. Background Jobs (Celery + Redis)
+## 6. Background Jobs — intentionally none (no Celery/Redis)
 
-| Task | Trigger | Purpose |
-|---|---|---|
-| `generate_questions_task` | Teacher clicks "Generate Questions" | Async call to Claude API, avoids blocking the request |
-| `sweep_expired_exam_attempts` | Celery beat, every N seconds | Force-submits attempts whose overall exam timer has lapsed without a final client call |
-| `notify_new_material` / `notify_new_assignment` | On material/assignment creation | Pushes a notice/notification |
+The MVP deliberately has **no background workers**:
+- **AI calls** run synchronously inside `ai_integration/services.py` (the code a Celery task would run). For a hackathon scale and the Neon free tier this removes the broker/worker operational burden entirely.
+- **Exam timer enforcement** needs no beat task: on every answer submission, 5-second heartbeat, and page render the server recomputes elapsed time and locks/advances/finalises accordingly (`exams/services.py`). A student closing the tab cannot extend an exam — the next heartbeat or page load finalises it.
 
-## 7. Real-Time Layer (Django Channels)
+## 7. Real-Time Layer — not built (roadmap)
 
-- `chat/consumers.py`: `CourseGroupConsumer` (scoped to a `course_offering`'s enrolled students + teacher) and `DirectMessageConsumer` (1:1).
-- Redis as the channel layer backend (shared with Celery broker for simplicity in the hackathon build).
+Chat (WebSockets / Django Channels) is roadmap-only and **not implemented** in the MVP. The exam countdown needs no WebSocket: `exam_timer.js` is display-only and all enforcement is server-side per §6.
 
-## 8. Auth
+## 8. Auth & Account Management
 
-- Django session auth for the server-rendered app (simplest for a Django-templates + HTMX frontend).
-- DRF token/JWT auth kept available on the same endpoints for any future mobile client, without changing the permission layer.
+- Django **session auth** for the server-rendered app; sign-up logs the user in automatically.
+- **Role-first sign-up** (`/accounts/signup/`): a role selector (Teacher/Student) then role-specific fields. Student IDs are validated as `CODE YYYYNNN` where the code must match the selected department (CS/EE/TE/FD/IP); duplicate usernames, student IDs, and employee IDs are rejected; batch auto-fills from the ID year.
+- **No demo accounts / no published credentials**: seeded users receive random passwords printed once at seed time (`SEED_PASSWORD` env override for deterministic setups). The former one-click demo login (`?demo=`) was removed.
+- **Admin People endpoints** (admin role only):
+  - `GET/POST /accounts/admin/users/` — directory (filter by role/department) + add teacher/student
+  - `GET/POST /accounts/admin/users/<id>/edit/` — update any account or reset a password (role is fixed for safety)
+  - `GET /accounts/admin/students/` — students grouped by **year → department → section**
+- **Admin Syllabus endpoints** (admin role only):
+  - `GET /admin/syllabus/` — pick department + semester, list that term's courses
+  - `POST /admin/syllabus/` — add course (duplicate in same semester rejected)
+  - `POST /admin/syllabus/<id>/edit/` — update code/title/credits
+  - `POST /admin/syllabus/<id>/delete/` — delete (blocked with a message if the course is assigned to an offering; `CourseOffering.course` is `PROTECT`)
 
 ## 9. Grading Logic
 

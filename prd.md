@@ -8,7 +8,9 @@
 
 NITER (National Institute of Textile Engineering and Research) currently uses an Educational Management System (EMS) that is used almost exclusively for **attendance tracking**. It does not support course materials, assignments, exams, research/thesis supervision, publication tracking, faculty-student communication, or performance analytics. As a result, these processes happen manually or over informal channels (email, Facebook groups, paper), which is inefficient, unstructured, and unscalable.
 
-**Scholaris** is a unified academic and research management platform built for NITER's actual academic structure: 5 departments (Textile Engineering, Industrial Production & Engineering, Fashion Design & Apparel Engineering, CSE, EEE), a closed-credit bi-semester system, and 9–10+ courses per semester.
+**Scholaris** is a unified academic and research management platform built for NITER's actual academic structure: 5 departments (Textile Engineering, Industrial Production & Engineering, Fashion Design & Apparel Engineering, CSE, EEE), a closed-credit bi-semester system of **8 semester slots (Semester 1–8, two per year)**, and 9–10+ courses per semester.
+
+Department short codes (used in student IDs and throughout the UI): **CS** = CSE, **EE** = EEE, **TE** = Textile Engineering, **FD** = Fashion Design & Apparel Engineering, **IP** = Industrial & Production Engineering.
 
 ---
 
@@ -60,7 +62,10 @@ Enrolls in courses, accesses materials, submits assignments, takes exams, submit
 ## 6. Feature Analysis by Module
 
 ### 6.1 Academic Program Management
-- Admin defines departments, semesters (bi-semester system), and the course catalog per department.
+- **8-semester system**: every department runs Semesters 1–8, two per year (1–2 = Year 1, 3–4 = Year 2, 5–6 = Year 3, 7–8 = Year 4). Semesters are numbered, with the year derived from the number.
+- Admin defines departments, semesters, and the **course catalog per department per semester** — the Syllabus module (`/admin/syllabus/`).
+- **Admin People management**: admin can add / view / edit every teacher and student account, and the student list is grouped by **admission year → department → section**.
+- **Self sign-up (role-first)**: both students and teachers register themselves at `/accounts/signup/` — they pick a role first (Teacher/Student), then fill role-specific fields (see §7.4). Student IDs follow the NITER format `CODE YYYYNNN` and the code must match the selected department; the admission batch auto-fills from the ID year.
 - Admin assigns a **teacher to a course for a specific semester** (many-to-many: a teacher can teach multiple courses; a course can have multiple sections/teachers).
 - Students register for courses within their department's credit rules for that semester (prerequisite-aware in future phases; v1 allows manual/admin-approved registration).
 - **Unified notice board & routine**: replaces scattered notices — one place for class schedule changes, deadlines, and announcements, scoped by department/course/institution-wide.
@@ -195,15 +200,35 @@ flowchart TD
     B --> S[View Personal Progress Dashboard]
 ```
 
+### 7.4 Self Sign-up (Role-First)
+
+Both **students and teachers self-register**; admins are created by an existing admin or via `createsuperuser`. The sign-up flow asks for the role first, then shows role-specific fields:
+
+```mermaid
+flowchart TD
+    A[Visit /accounts/signup/] --> B{Select role}
+    B -->|Student| C[Name, username, email, department,\nStudent ID CODE YYYYNNN, batch, section]
+    B -->|Teacher| D[Name, username, email, department,\nEmployee ID]
+    C --> E[Validate: ID code must match department,\nbatch auto-fills from ID year,\nduplicate ID / username rejected]
+    D --> E
+    E --> F[Account created, logged in automatically,\nlands on role dashboard]
+```
+
+- **Student ID format**: department code + year + serial, e.g. `TE 2405038` (TE = Textile, CS = CSE, EE = EEE, FD = Fashion Design & Apparel, IP = Industrial & Production). The code prefix must match the selected department.
+- **Batch (admission year)** is optional — if left blank it derives automatically from the ID year (e.g. `CS 2605777` → batch 2026).
+- **No published demo credentials** — seeded users get random passwords printed once at seed time (or a shared `SEED_PASSWORD` env var for deterministic setups).
+
 ---
 
 ## 8. MVP Scope (Hackathon Demo)
 
 The MVP is the **exam system end-to-end**, wrapped by the minimum surrounding modules needed to make it a real, live-clickable story rather than an isolated feature. See `development-plan.md` for the full breakdown and demo script.
 
-In scope for the demo: Admin course assignment → Student enrollment → Teacher material upload → AI question generation & approval → Exam build & schedule → Student exam-taking with per-question timers → MCQ auto-grade + CQ manual grade → Results → Faculty rating (private aggregation).
+In scope for the demo: Admin People & Syllabus management → Admin course assignment → Student enrollment → Teacher material upload → AI question generation & approval → Exam build & schedule → Student exam-taking with per-question timers → MCQ auto-grade + CQ manual grade → Results → Faculty rating (private aggregation).
 
-Out of scope for the live demo (shown as roadmap/wireframes only): full research/thesis workflow, publication tracking, group chat, Phase 2 gap-analysis AI.
+Also built and live (post-SQA hardening): a **public landing page** (what Scholaris is, how it works, per-role login guide, animated AI-exam-flow demo), **role-first self sign-up** for students and teachers, **admin People management** (CRUD for all accounts, students grouped by year → department → section), **admin Syllabus management** (courses per department per semester, add/update/delete with delete-blocked-when-assigned), and the **Semester 1–8** term structure.
+
+Out of scope for the live demo (shown as roadmap/wireframes only): full research/thesis workflow, publication tracking, group chat, notice board, Phase 2 gap-analysis AI.
 
 ## 9. Success Metrics (Post-Hackathon / Real Deployment)
 

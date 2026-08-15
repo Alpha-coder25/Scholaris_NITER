@@ -16,16 +16,18 @@ Course materials, assignments, exams, research supervision, publications, facult
 
 The live demo is the **exam system end-to-end**, wrapped in the minimum surrounding modules that make it a real story:
 
-1. ✅ Role-based auth (Admin / Teacher / Student)
-2. ✅ Admin assigns a teacher to a course offering
-3. ✅ Student enrolls in a course
-4. ✅ Teacher uploads lecture materials (versioned)
-5. ✅ **AI drafts questions from the material — teacher must review & approve (human-in-the-loop)**
-6. ✅ Exam builder: pick approved questions, set per-question timers + marks, schedule the window
-7. ✅ Student takes the exam: one question at a time, **server-enforced timers**, auto-advance, no backtracking
-8. ✅ Grading: MCQ auto-graded instantly, CQ queued for the teacher
-9. ✅ Results: student score + teacher gradebook with per-question class analytics
-10. ✅ Faculty ratings — private, aggregated, threshold-gated
+1. ✅ Role-based auth (Admin / Teacher / Student), role-first self sign-up
+2. ✅ **Admin People management** — add / view / update all teachers & students
+3. ✅ **Admin Syllabus management** — add / update / delete courses per department & semester
+4. ✅ Admin assigns a teacher to a course offering
+5. ✅ Student enrolls in a course
+6. ✅ Teacher uploads lecture materials (versioned)
+7. ✅ **AI drafts questions from the material — teacher must review & approve (human-in-the-loop)**
+8. ✅ Exam builder: pick approved questions, set per-question timers + marks, schedule the window
+9. ✅ Student takes the exam: one question at a time, **server-enforced timers**, auto-advance, no backtracking
+10. ✅ Grading: MCQ auto-graded instantly, CQ queued for the teacher
+11. ✅ Results: student score + teacher gradebook with per-question class analytics
+12. ✅ Faculty ratings — private, aggregated, threshold-gated
 
 **Roadmap only (not built for the demo):** research/thesis workflow, publications, group chat, assignments module, notice board, Phase-2 gap-analysis AI. See `development-plan.md` §1.
 
@@ -70,9 +72,9 @@ npm run build:css                  # or: npm run watch:css
 python manage.py runserver
 ```
 
-Open http://localhost:8000 — the root serves a **public landing page** (what Scholaris is, how it works, per-role login guide) with **Log in** and **Sign up as a student** buttons. Logged-in users land directly on their role dashboard; logging out returns to the landing page.
+Open http://localhost:8000 — the root serves a **public landing page** (what Scholaris is, how it works, per-role login guide, and an animated demo of the AI exam flow) with **Log in** and **Sign up** buttons. Logged-in users land directly on their role dashboard; logging out returns to the landing page.
 
-### Accounts
+### Accounts — role-first self sign-up
 
 There are **no published demo credentials.** `seed_demo_data` gives every
 seeded user a strong random password and prints the full list once at seed
@@ -80,10 +82,26 @@ time — save it if you need to log in as a seeded user. For deterministic
 setups (CI, a shared demo DB), set `SEED_PASSWORD` in the environment and all
 seeded users share that password.
 
-Students can **sign up themselves** (`/accounts/signup/`) — they get a `student`
-account, are logged in automatically, and can then enroll in courses. Teacher
-and admin accounts are created by the institution (the admin can also create
-them, or a superuser can be made via `createsuperuser`).
+**Both students and teachers self-register** at `/accounts/signup/` — the form
+asks you to pick a role first, then collects role-specific fields:
+
+- **Student** — name, username, email, department, **Student ID**, **batch (admission year)** and **section**. Student IDs use the NITER format `CODE YYYYNNN` (department code + year + serial, e.g. `TE 2405038`); the code must match the selected department (CS=CSE · EE=EEE · TE=Textile · FD=Fashion Design & Apparel · IP=Industrial & Production), and the batch auto-fills from the ID year when left blank.
+- **Teacher** — name, username, email, department, **Employee ID**.
+
+Sign-up logs you in automatically. Admins are created via `createsuperuser` or the seeded admin account.
+
+### Admin: People, Syllabus & course assignment
+
+The admin panel (login as admin) manages the academic structure:
+
+- **People** (`/accounts/admin/users/`) — directory of all teachers & students, filterable by role/department, with add / view / edit for every account (including password reset).
+- **Students by cohort** (`/accounts/admin/students/`) — the student list grouped by **admission year → department → section**.
+- **Syllabus** (`/admin/syllabus/`) — pick a department + semester and **add / update / delete** the courses in that term's syllabus (code, title, credit hours). Deleting a course that is already assigned to a course offering is blocked.
+- **Assign Courses** (`/admin/course-offerings/`) — assign teacher → course → semester → section.
+
+### Semesters: Semester 1–8
+
+Every department runs **8 semester slots, two per year**: Semester 1–2 = Year 1, 3–4 = Year 2, 5–6 = Year 3, 7–8 = Year 4. The seed creates all eight (demo data lives in the current term, Semester 5 / Year 3), and the syllabus and course-assignment dropdowns show `Semester N (Year Y)`.
 
 ## Demo script (60–90 seconds)
 

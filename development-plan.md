@@ -1,22 +1,27 @@
 # Development Plan — Hackathon Build
 
+> **Status: BUILT AND LIVE.** This document is the original build plan; the MVP described below is implemented, deployed at https://scholaris-lime.vercel.app, and verified by 100/100 tests + 56/56 end-to-end checks. Beyond the original plan, the following were added during development and hardening: a public **landing page** with animated AI-exam-flow demo, **role-first sign-up** for students & teachers (NITER ID validation, department codes CS/EE/TE/FD/IP, auto batch), **admin People management** (CRUD + students grouped by year → department → section), **admin Syllabus management** (courses per department × semester, delete-blocked-when-assigned), the **Semester 1–8** term structure (two per year), removal of all published demo credentials, and a full **SQA pass (97/100)** with a CI workflow (`.github/workflows/ci.yml`).
+
 ## 1. Scope Boundary (Read This First)
 
 Build **one complete, real, live-clickable loop**: the exam system, wrapped by the minimum surrounding modules needed to make it a coherent story. Everything else is a labeled roadmap slide, not a half-built screen. See `prd.md` §8 for the full scope rationale.
 
-**In scope (build for real):**
-1. Auth + role-based login (Admin/Teacher/Student)
-2. Admin: assign teacher to course offering
-3. Student: enroll in course
-4. Teacher: upload material
-5. AI: generate draft questions from material
-6. Teacher: review/approve/edit questions, build exam (total + per-question timers), schedule
-7. Student: take exam (one question at a time, server-enforced timers, auto-advance)
-8. Grading: MCQ auto, CQ manual by teacher
-9. Results: student + teacher views
-10. Rating: student rates teacher (private aggregation)
+**In scope (build for real) — all ✅ done:**
+1. ✅ Auth + role-based login (Admin/Teacher/Student) + **role-first self sign-up** for students & teachers
+2. ✅ Admin: **People management** (add/view/edit all accounts) and **Syllabus management** (courses per department × semester) + assign teacher to course offering
+3. ✅ Student: enroll in course
+4. ✅ Teacher: upload material
+5. ✅ AI: generate draft questions from material
+6. ✅ Teacher: review/approve/edit questions, build exam (total + per-question timers), schedule
+7. ✅ Student: take exam (one question at a time, server-enforced timers, auto-advance)
+8. ✅ Grading: MCQ auto, CQ manual by teacher
+9. ✅ Results: student + teacher views
+10. ✅ Rating: student rates teacher (private aggregation)
+11. ✅ Public landing page + per-role login guide + animated AI-exam-flow demo
+12. ✅ Semester 1–8 structure (two semesters per year) across syllabus, assignment, and seed
+13. ✅ SQA hardening: CI workflow, 100 tests, DAST/Load/Lighthouse passes, demo credentials removed
 
-**Out of scope for live demo (wireframe/slide only):** research/thesis workflow, publication tracking, group chat, Phase 2 gap-analysis AI, notice board (build only if time allows after core loop is solid).
+**Out of scope for live demo (wireframe/slide only):** research/thesis workflow, publication tracking, group chat, notice board, Phase 2 gap-analysis AI.
 
 ## 2. Suggested Team Split (4–5 people)
 
@@ -83,12 +88,12 @@ Build **one complete, real, live-clickable loop**: the exam system, wrapped by t
 
 ## 5. Definition of Done (for the hackathon submission)
 
-- [ ] All 10 in-scope items in §1 work live, not mocked.
-- [ ] Server-side timer enforcement demonstrably works (tested with a deliberate timeout).
-- [ ] Seeded demo data looks realistic, not like `test1`/`asdf`.
-- [ ] Architecture diagram, DB schema, and privacy notes are in the submitted docs (`technology.md`).
+- [x] All in-scope items in §1 work live, not mocked (verified by `verify_demo.py`, 56/56 checks).
+- [x] Server-side timer enforcement demonstrably works (tested with a deliberate timeout).
+- [x] Seeded demo data looks realistic, not like `test1`/`asdf` (5 departments, 8 semesters, realistic courses, students with NITER-format IDs/batches/sections).
+- [x] Architecture diagram, DB schema, and privacy notes are in the submitted docs (`technology.md`).
 - [ ] Demo video recorded as a fallback.
-- [ ] GitHub repo is clean, README (`readme.md`) has setup instructions that actually work from a fresh clone.
+- [x] GitHub repo is clean, README has setup instructions that actually work from a fresh clone (auto-deploys to Vercel on push; CI green).
 
 ## 6. Explicit Cut List (if time runs short)
 
