@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'dashboard:teacher_course' exam.course_offering_id %}" class="text-sm text-emerald-700 font-semibold hover:underline">← {{ exam.course_offering.course.code }}</a>
+  <div class="flex items-start justify-between flex-wrap gap-4 mt-1">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-800">{{ exam.title }}</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        {{ exam.question_count }} questions · {{ exam.total_duration_seconds }}s total · max {{ exam.max_score }} marks ·
+        window {{ exam.start_time|date:"M d, H:i" }} → {{ exam.end_time|date:"M d, H:i"|default:"open" }}
+        {% if exam.is_open %} · <span class="text-emerald-600 font-bold">● open now</span>{% elif exam.is_scheduled %}<span class="text-sky-600 font-bold">· scheduled</span>{% else %}<span class="text-slate-400">· ended</span>{% endif %}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'exams:gradebook' exam.pk %}" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold">Gradebook &amp; analytics</a>
+      <a href="{% url 'exams:grading_queue' exam.course_offering_id %}" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-bold">Grading queue</a>
+    </div>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-800">Exam questions (in order)</h2></div>
+    <ol class="divide-y divide-slate-100 text-sm">
+      {% for eq in exam.exam_questions.all %}
+      <li class="px-6 py-3">
+        <span class="font-bold text-emerald-700">Q{{ eq.order }}</span>
+        <span class="px-1.5 py-0.5 rounded bg-slate-100 text-xs font-bold ml-1">{{ eq.question.get_type_display }}</span>
+        <p class="mt-1 font-medium">{{ eq.question.text }}</p>
+        <p class="text-xs text-slate-400 mt-0.5">{{ eq.time_limit_seconds }}s per question · {{ eq.marks }} marks</p>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-800">Attempts ({{ attempts|length }})</h2></div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left px-6 py-3 font-semibold">Student</th>
+          <th class="text-left px-6 py-3 font-semibold">Status</th>
+          <th class="text-left px-6 py-3 font-semibold">Score</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for a in attempts %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-3 font-medium">{{ a.student.get_full_name|default:a.student.username }}</td>
+          <td class="px-6 py-3">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold
+              {% if a.status == 'graded' %}bg-emerald-50 text-emerald-700
+              {% elif a.status == 'submitted' %}bg-amber-50 text-amber-700
+              {% else %}bg-sky-50 text-sky-700{% endif %}">{{ a.get_status_display }}</span>
+          </td>
+          <td class="px-6 py-3 font-bold">{{ a.total_score }}<span class="text-slate-400 font-normal"> / {{ a.max_score }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="px-6 py-8 text-center text-slate-400">No attempts yet — share the exam link with enrolled students.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

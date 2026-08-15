@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">My Courses</h1>
+  <p class="text-slate-500 text-sm mt-1">Everything you teach this semester — materials, question bank, exams, grading.</p>
+</div>
+
+<div class="grid md:grid-cols-2 gap-5">
+  {% for o in offerings %}
+  <a href="{% url 'dashboard:teacher_course' o.pk %}" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition p-6 block">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-wide text-emerald-600">{{ o.semester.name }}</p>
+        <h2 class="text-lg font-extrabold text-slate-800 mt-1">{{ o.course.code }} — {{ o.course.title }}</h2>
+        <p class="text-sm text-slate-500 mt-0.5">Section {{ o.section }} · {{ o.course.credit_hours }} credits · {{ o.enrollment_count }} students</p>
+      </div>
+      <span class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold">{{ o.course.department.short_code|default:o.course.department.name }}</span>
+    </div>
+    <div class="mt-4 flex gap-2 text-xs font-semibold">
+      {% if o.pending_grading %}
+      <span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">{{ o.pending_grading }} CQ answers to grade</span>
+      {% endif %}
+      <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{{ o.exams.count }} exams</span>
+    </div>
+  </a>
+  {% empty %}
+  <div class="md:col-span-2 bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400">
+    No courses assigned yet — the admin assigns teachers to courses.
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

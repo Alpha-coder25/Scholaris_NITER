@@ -1,0 +1,76 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Scholaris{% endblock %} · Scholaris</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+  <style>body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
+
+  {% if user.is_authenticated %}
+  <nav class="text-white shadow-md">
+    {% if user_role == "admin" %}
+    <div class="bg-violet-700">
+    {% elif user_role == "teacher" %}
+    <div class="bg-emerald-700">
+    {% else %}
+    <div class="bg-sky-700">
+    {% endif %}
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-6">
+          <a href="{% url 'dashboard:home' %}" class="flex items-center gap-2 font-extrabold text-lg tracking-tight">
+            <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/20">🎓</span>
+            Scholaris
+          </a>
+          <div class="hidden md:flex items-center gap-4 text-sm font-medium">
+            {% if user_role == "admin" %}
+              <a href="{% url 'dashboard:admin_dashboard' %}" class="hover:underline">Dashboard</a>
+              <a href="{% url 'academics:course_offerings' %}" class="hover:underline">Assign Courses</a>
+              <a href="{% url 'dashboard:admin_analytics' %}" class="hover:underline">Analytics</a>
+            {% elif user_role == "teacher" %}
+              <a href="{% url 'dashboard:teacher_dashboard' %}" class="hover:underline">My Courses</a>
+              <a href="{% url 'dashboard:teacher_ratings' %}" class="hover:underline">My Ratings</a>
+            {% else %}
+              <a href="{% url 'dashboard:student_dashboard' %}" class="hover:underline">My Courses</a>
+              <a href="{% url 'academics:enroll' %}" class="hover:underline">Enroll</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="hidden sm:block px-2.5 py-1 rounded-md bg-white/15 text-xs font-bold uppercase tracking-wide">
+            {{ user.get_role_display }}
+          </span>
+          <span class="hidden sm:block font-medium">{{ user.get_full_name|default:user.username }}</span>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 font-semibold">Log out</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="flex-1 w-full max-w-6xl mx-auto px-4 py-8">
+    {% if messages %}
+      <div class="mb-6 space-y-2">
+        {% for message in messages %}
+          <div class="px-4 py-3 rounded-lg text-sm font-medium shadow-sm {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% elif message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-sky-50 text-sky-800 border border-sky-200{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="py-6 text-center text-xs text-slate-400">
+    Scholaris — unified academic &amp; research platform · NITER Innovate Hackathon 2026
+  </footer>
+</body>
+</html>

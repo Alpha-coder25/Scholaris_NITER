@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Assign Courses{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">Assign Teacher → Course → Semester</h1>
+  <p class="text-slate-500 text-sm mt-1">Creates a course offering: the unit every academic activity hangs off.</p>
+</div>
+
+<div class="grid md:grid-cols-5 gap-6">
+  <div class="md:col-span-2">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <h2 class="font-bold text-slate-800 mb-4">New course offering</h2>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Department</label>
+          <select id="dept-select" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            {% for d in departments %}
+            <option value="{{ d.pk }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Course</label>
+          <select name="course" id="course-select" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            {% for d in departments %}
+            <optgroup label="{{ d.name }}">
+              {% for c in d.courses.all %}
+              <option value="{{ c.pk }}" data-dept="{{ d.pk }}">{{ c.code }} — {{ c.title }} ({{ c.credit_hours }} cr)</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Semester</label>
+          <select name="semester" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            {% for s in semesters %}
+            <option value="{{ s.pk }}" {% if s.is_active %}selected{% endif %}>{{ s.name }}{% if s.is_active %} (active){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Teacher</label>
+          <select name="teacher" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            {% for t in teachers %}
+            <option value="{{ t.pk }}">{{ t.get_full_name|default:t.username }}{% if t.department %} — {{ t.department.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Section</label>
+          <input type="text" name="section" value="A" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+        </div>
+        <button class="w-full py-2.5 rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-bold text-sm">
+          Assign teacher
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="md:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100">
+      <h2 class="font-bold text-slate-800">Current assignments ({{ offerings|length }})</h2>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left px-6 py-3 font-semibold">Course</th>
+          <th class="text-left px-6 py-3 font-semibold">Semester</th>
+          <th class="text-left px-6 py-3 font-semibold">Teacher</th>
+          <th class="text-left px-6 py-3 font-semibold">Sec</th>
+          <th class="text-left px-6 py-3 font-semibold">Students</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for o in offerings %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-3 font-medium">{{ o.course.code }} <span class="text-slate-500 font-normal">· {{ o.course.title }}</span></td>
+          <td class="px-6 py-3 text-slate-600">{{ o.semester.name }}</td>
+          <td class="px-6 py-3 text-slate-600">{{ o.teacher.get_full_name|default:o.teacher.username }}</td>
+          <td class="px-6 py-3">{{ o.section }}</td>
+          <td class="px-6 py-3"><span class="px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-xs font-bold">{{ o.enrollment_count }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">No assignments yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // Filter course options by department
+  const deptSelect = document.getElementById('dept-select');
+  const courseSelect = document.getElementById('course-select');
+  function filterCourses() {
+    const dept = deptSelect.value;
+    [...courseSelect.options].forEach(opt => {
+      opt.hidden = opt.dataset.dept !== dept;
+    });
+    const first = [...courseSelect.options].find(o => o.dataset.dept === dept);
+    if (first) courseSelect.value = first.value;
+  }
+  deptSelect.addEventListener('change', filterCourses);
+  filterCourses();
+</script>
+{% endblock %}

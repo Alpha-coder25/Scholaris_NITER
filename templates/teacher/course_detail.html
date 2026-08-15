@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ offering.course.code }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <div class="flex items-start justify-between flex-wrap gap-4">
+    <div>
+      <p class="text-xs font-bold uppercase tracking-wide text-emerald-600">{{ offering.semester.name }} · Section {{ offering.section }}</p>
+      <h1 class="text-2xl font-extrabold text-slate-800">{{ offering.course.code }} — {{ offering.course.title }}</h1>
+      <p class="text-sm text-slate-500 mt-1">Taught by {{ offering.teacher.get_full_name|default:offering.teacher.username }} · {{ offering.enrollment_count }} students · {{ offering.course.credit_hours }} credits</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'materials:upload' offering.pk %}" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold">+ Upload material</a>
+      <a href="{% url 'exams:question_review' offering.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-bold">Question bank</a>
+      <a href="{% url 'exams:exam_builder' offering.pk %}" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold">+ Build exam</a>
+    </div>
+  </div>
+</div>
+
+<div class="grid md:grid-cols-3 gap-6">
+  <!-- Materials -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center">
+      <h2 class="font-bold text-slate-800">Materials</h2>
+      <a href="{% url 'materials:upload' offering.pk %}" class="text-xs font-bold text-emerald-600 hover:underline">Upload</a>
+    </div>
+    <ul class="divide-y divide-slate-100 text-sm">
+      {% for m in materials %}
+      <li class="px-5 py-3 flex items-center justify-between gap-2">
+        <div class="min-w-0">
+          <p class="font-medium truncate">{{ m.title }} <span class="text-slate-400 text-xs">v{{ m.version }}</span></p>
+          <p class="text-xs text-slate-400">{{ m.filename }} · {{ m.uploaded_at|date:"M d, H:i" }}</p>
+        </div>
+        <a href="{% url 'materials:generate_questions' offering.pk m.pk %}" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold">✨ Generate questions</a>
+      </li>
+      {% empty %}
+      <li class="px-5 py-8 text-center text-slate-400 text-sm">No materials yet.<br>Upload a lecture to start the AI flow.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Exams -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center">
+      <h2 class="font-bold text-slate-800">Exams</h2>
+      <a href="{% url 'exams:exam_builder' offering.pk %}" class="text-xs font-bold text-emerald-600 hover:underline">Build</a>
+    </div>
+    <ul class="divide-y divide-slate-100 text-sm">
+      {% for exam in exams %}
+      <li class="px-5 py-3">
+        <a href="{% url 'exams:exam_detail' exam.pk %}" class="font-medium hover:text-emerald-700">{{ exam.title }}</a>
+        <p class="text-xs text-slate-400 mt-0.5">{{ exam.question_count }} questions · {{ exam.total_duration_seconds }}s total · starts {{ exam.start_time|date:"M d, H:i" }}{% if exam.is_open %} · <span class="text-emerald-600 font-semibold">open now</span>{% elif exam.is_scheduled %} · <span class="text-sky-600 font-semibold">scheduled</span>{% else %} · <span class="text-slate-400">ended</span>{% endif %}</p>
+      </li>
+      {% empty %}
+      <li class="px-5 py-8 text-center text-slate-400 text-sm">No exams yet.<br>Build one from your approved question bank.</li>
+      {% endfor %}
+    </ul>
+    <div class="px-5 py-3 border-t border-slate-100">
+      <a href="{% url 'exams:grading_queue' offering.pk %}" class="text-sm font-bold text-emerald-700 hover:underline">
+        Grading queue {% if pending_grading %}<span class="ml-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">{{ pending_grading }} pending</span>{% endif %}
+      </a>
+    </div>
+  </div>
+
+  <!-- Students + rating -->
+  <div class="space-y-6">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-100">
+        <h2 class="font-bold text-slate-800">Enrolled students ({{ offering.enrollment_count }})</h2>
+      </div>
+      <ul class="divide-y divide-slate-100 text-sm max-h-56 overflow-auto">
+        {% for e in students %}
+        <li class="px-5 py-2.5 flex justify-between">
+          <span class="font-medium">{{ e.student.get_full_name|default:e.student.username }}</span>
+          <span class="text-xs text-slate-400">{{ e.student.display_id }}</span>
+        </li>
+        {% empty %}
+        <li class="px-5 py-8 text-center text-slate-400">No enrollments yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+      <h2 class="font-bold text-slate-800 mb-1">Your rating — this course</h2>
+      {% if my_rating %}
+        <p class="text-2xl font-extrabold text-amber-500">★ {{ my_rating.avg }}</p>
+        <p class="text-xs text-slate-400">from {{ my_rating.count }} anonymous responses</p>
+        <div class="mt-2 flex gap-1 text-xs">
+          {% for star, count in my_rating.distribution.items %}
+          <span class="px-1.5 py-0.5 rounded bg-slate-100">{{ star }}★ ×{{ count }}</span>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm text-slate-500">Aggregate hidden until <b>{{ rating_needed }}</b> more response{{ rating_needed|pluralize }} — privacy first.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}My Courses{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">My courses</h1>
+  <p class="text-slate-500 text-sm mt-1">Materials, exams and results — one place, no more Facebook groups.</p>
+</div>
+
+<div class="grid md:grid-cols-2 gap-5">
+  {% for e in enrollments %}
+  {% with o=e.course_offering %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <a href="{% url 'dashboard:student_course' o.pk %}" class="block p-6 pb-4">
+      <p class="text-xs font-bold uppercase tracking-wide text-sky-600">{{ o.semester.name }} · Section {{ o.section }}</p>
+      <h2 class="text-lg font-extrabold text-slate-800 mt-1">{{ o.course.code }} — {{ o.course.title }}</h2>
+      <p class="text-sm text-slate-500 mt-0.5">{{ o.teacher.get_full_name|default:o.teacher.username }} · {{ o.course.credit_hours }} credits</p>
+    </a>
+    <div class="px-6 pb-5 space-y-2">
+      {% if o.upcoming_exams %}
+        {% for exam in o.upcoming_exams %}
+        <div class="flex items-center justify-between bg-sky-50 border border-sky-100 rounded-lg px-4 py-2.5">
+          <span class="text-sm font-semibold text-sky-800">📅 {{ exam.title }}</span>
+          <span class="text-xs text-sky-600">{{ exam.start_time|date:"M d, H:i" }}</span>
+        </div>
+        {% endfor %}
+      {% endif %}
+      {% for at in o.attempts %}
+      <a href="{% url 'exams:attempt_result' at.pk %}" class="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-lg px-4 py-2.5 hover:bg-slate-100">
+        <span class="text-sm font-semibold">{{ at.exam.title }}</span>
+        <span class="text-xs">
+          {% if at.status == 'graded' %}<span class="font-bold text-emerald-600">{{ at.total_score }}/{{ at.max_score }}</span>
+          {% elif at.status == 'submitted' %}<span class="text-amber-600 font-semibold">awaiting CQ grades</span>
+          {% else %}<span class="text-sky-600 font-semibold">in progress</span>{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+      {% if not o.upcoming_exams and not o.attempts %}
+      <p class="text-xs text-slate-400">No exams yet.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endwith %}
+  {% empty %}
+  <div class="md:col-span-2 bg-white rounded-xl border border-slate-200 p-10 text-center">
+    <p class="text-slate-500 mb-3">You're not enrolled in any courses yet.</p>
+    <a href="{% url 'academics:enroll' %}" class="inline-block px-5 py-2.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-sm font-bold">Browse &amp; enroll</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

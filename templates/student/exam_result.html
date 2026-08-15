@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load dashboard_extras %}
+{% block title %}Results — {{ attempt.exam.title }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'dashboard:student_course' attempt.exam.course_offering_id %}" class="text-sm text-sky-700 font-semibold hover:underline">← {{ attempt.exam.course_offering.course.code }}</a>
+  <h1 class="text-2xl font-extrabold text-slate-800 mt-1">{{ attempt.exam.title }} — results</h1>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
+  <div class="flex items-center gap-6 flex-wrap">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Your score</p>
+      <p class="text-4xl font-extrabold text-sky-700">{{ attempt.total_score }}<span class="text-slate-300 text-2xl"> / {{ attempt.max_score }}</span></p>
+    </div>
+    <div class="h-12 w-px bg-slate-200 hidden sm:block"></div>
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
+      <p class="mt-1">
+        <span class="px-3 py-1 rounded-full text-sm font-bold
+          {% if attempt.status == 'graded' %}bg-emerald-50 text-emerald-700
+          {% elif attempt.status == 'submitted' %}bg-amber-50 text-amber-700
+          {% else %}bg-sky-50 text-sky-700{% endif %}">{{ attempt.get_status_display }}</span>
+      </p>
+    </div>
+    {% if attempt.status == "submitted" %}
+    <p class="text-sm text-slate-500">MCQ questions were graded instantly — the teacher is still reviewing your written answer{{ attempt.answers.all|length|pluralize }}.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-800">Question-by-question</h2></div>
+  <ul class="divide-y divide-slate-100">
+    {% for a in answers %}
+    <li class="px-6 py-4">
+      <div class="flex items-start justify-between gap-3">
+        <p class="font-medium text-slate-800 flex-1">
+          <span class="font-bold text-sky-700">Q{{ a.exam_question.order }}.</span> {{ a.exam_question.question.text }}
+        </p>
+        <div class="shrink-0 text-right">
+          {% if a.exam_question.question.is_mcq %}
+            {% if a.locked %}
+              <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold">⏱ locked</span>
+            {% elif a.auto_score and a.auto_score > 0 %}
+              <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">✓ correct · +{{ a.auto_score }}</span>
+            {% else %}
+              <span class="px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-bold">✗ incorrect · 0</span>
+            {% endif %}
+          {% else %}
+            {% if a.manual_score is not None %}
+              <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">+{{ a.manual_score }} marks</span>
+            {% else %}
+              <span class="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">pending teacher review</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% if a.exam_question.question.is_mcq and a.answer_data is not None %}
+      <p class="text-sm mt-2 text-slate-500">
+        Your answer: <span class="font-medium text-slate-700">
+          {% with opt=a.exam_question.question.options|index:a.answer_data %}
+            {% if opt %}{{ opt }}{% else %}Option {{ a.answer_data|add:1 }}{% endif %}
+          {% endwith %}
+        </span>
+      </p>
+      {% endif %}
+      {% if not a.exam_question.question.is_mcq %}
+      <div class="mt-2 bg-slate-50 rounded-lg p-3 border border-slate-100 text-sm text-slate-600 whitespace-pre-wrap">
+        {% if a.answer_data %}{{ a.answer_data }}{% else %}<i class="text-slate-400">No answer submitted.</i>{% endif %}
+      </div>
+      {% if a.graded_comment %}
+      <p class="text-xs text-slate-400 mt-2">Teacher: “{{ a.graded_comment }}”</p>
+      {% endif %}
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="mt-8 flex gap-3">
+  <a href="{% url 'ratings:rate_offering' attempt.exam.course_offering_id %}" class="px-5 py-2.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-sm font-bold">Rate this course &amp; teacher</a>
+  <a href="{% url 'dashboard:student_course' attempt.exam.course_offering_id %}" class="px-5 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-bold">Back to course</a>
+</div>
+{% endblock %}

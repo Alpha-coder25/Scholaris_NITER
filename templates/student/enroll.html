@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Enroll in Courses{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">Enroll in courses</h1>
+  <p class="text-slate-500 text-sm mt-1">Pick your courses for this semester — each one gives you materials, exams and direct chat with the teacher.</p>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-6 py-3 font-semibold">Course</th>
+        <th class="text-left px-6 py-3 font-semibold">Semester</th>
+        <th class="text-left px-6 py-3 font-semibold">Teacher</th>
+        <th class="text-left px-6 py-3 font-semibold">Section</th>
+        <th class="text-right px-6 py-3 font-semibold">Action</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for o in offerings %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-6 py-3">
+          <span class="font-bold">{{ o.course.code }}</span>
+          <span class="text-slate-600">— {{ o.course.title }}</span>
+        </td>
+        <td class="px-6 py-3 text-slate-600">{{ o.semester.name }}</td>
+        <td class="px-6 py-3 text-slate-600">{{ o.teacher.get_full_name|default:o.teacher.username }}</td>
+        <td class="px-6 py-3">{{ o.section }}</td>
+        <td class="px-6 py-3 text-right">
+          {% if o.pk in enrolled_ids %}
+          <span class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold">✓ Enrolled</span>
+          {% else %}
+          <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="offering" value="{{ o.pk }}">
+            <button class="px-4 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold">Enroll</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">No courses offered yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

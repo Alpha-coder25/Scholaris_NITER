@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load dashboard_extras %}
+{% block title %}Gradebook — {{ exam.title }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="{% url 'exams:exam_detail' exam.pk %}" class="text-sm text-emerald-700 font-semibold hover:underline">← {{ exam.title }}</a>
+  <h1 class="text-2xl font-extrabold text-slate-800 mt-1">Gradebook &amp; question analytics</h1>
+  <p class="text-slate-500 text-sm mt-1">Per-student and per-question breakdown — spot the topics the class missed.</p>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+  <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-800">Per-question class breakdown</h2></div>
+  <div class="grid md:grid-cols-3 gap-4 p-6">
+    {% for s in question_stats %}
+    <div class="rounded-xl border p-4 {% if s.pct >= 60 %}border-emerald-200 bg-emerald-50{% elif s.pct >= 30 %}border-amber-200 bg-amber-50{% else %}border-red-200 bg-red-50{% endif %}">
+      <p class="text-xs font-bold uppercase tracking-wide text-slate-500">Q{{ s.eq.order }}</p>
+      <p class="text-sm font-medium mt-0.5 line-clamp-2">{{ s.eq.question.text|truncatechars:90 }}</p>
+      <div class="mt-2 flex items-center gap-2">
+        <span class="text-2xl font-extrabold {% if s.pct >= 60 %}text-emerald-700{% elif s.pct >= 30 %}text-amber-700{% else %}text-red-700{% endif %}">{{ s.pct|floatformat:0 }}%</span>
+        <span class="text-xs text-slate-500">correct</span>
+      </div>
+      <div class="mt-2 flex gap-2 text-xs">
+        <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200">✓ {{ s.correct }} right</span>
+        <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200">✗ {{ s.wrong }} wrong</span>
+        <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200">— {{ s.unanswered }} skipped</span>
+      </div>
+    </div>
+    {% empty %}
+    <p class="text-slate-400 text-sm col-span-3">No attempts yet.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <div class="px-6 py-4 border-b border-slate-100"><h2 class="font-bold text-slate-800">Student scores</h2></div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm whitespace-nowrap">
+      <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+        <tr>
+          <th class="text-left px-6 py-3 font-semibold">Student</th>
+          {% for eq in exam.exam_questions.all %}
+          <th class="text-center px-3 py-3 font-semibold">Q{{ eq.order }}</th>
+          {% endfor %}
+          <th class="text-center px-6 py-3 font-semibold">Total</th>
+          <th class="text-left px-6 py-3 font-semibold">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for row in rows %}
+        <tr class="hover:bg-slate-50">
+          <td class="px-6 py-3 font-medium">{{ row.attempt.student.get_full_name|default:row.attempt.student.username }}</td>
+          {% for eq in exam.exam_questions.all %}
+          {% with a=row.by_eq|default:"" %}
+          <td class="text-center px-3 py-3">
+            {% if row.by_eq and eq.pk in row.by_eq %}
+              {% with ans=row.by_eq|get_item:eq.pk %}
+                <span class="{% if ans.auto_score and ans.auto_score > 0 %}text-emerald-600 font-bold{% elif ans.auto_score == 0 %}text-red-500{% else %}text-slate-500{% endif %}">
+                  {{ ans.auto_score|default:"—" }}{% if ans.manual_score is not None %}<span class="text-emerald-600 font-bold">/{{ ans.manual_score }}</span>{% elif ans.auto_score is None and ans.submitted_at %}<span class="text-amber-500">p</span>{% endif %}
+                </span>
+              {% endwith %}
+            {% else %}
+              <span class="text-slate-300">—</span>
+            {% endif %}
+          </td>
+          {% endwith %}
+          {% endfor %}
+          <td class="text-center px-6 py-3 font-extrabold">{{ row.attempt.total_score }}<span class="text-slate-400 font-normal">/{{ row.attempt.max_score }}</span></td>
+          <td class="px-6 py-3">
+            <span class="px-2 py-0.5 rounded-full text-xs font-bold {% if row.attempt.status == 'graded' %}bg-emerald-50 text-emerald-700{% else %}bg-amber-50 text-amber-700{% endif %}">{{ row.attempt.get_status_display }}</span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="px-6 py-8 text-center text-slate-400">No attempts yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

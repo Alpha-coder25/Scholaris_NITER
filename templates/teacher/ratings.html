@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}My Ratings{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">My ratings — private</h1>
+  <p class="text-slate-500 text-sm mt-1">Aggregated only, shown to you and admin once enough students respond ({{ RATING_MIN_RESPONSES }} minimum). No individual ratings are ever revealed.</p>
+</div>
+
+<div class="grid md:grid-cols-2 gap-5">
+  {% for row in rows %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <p class="text-xs font-bold uppercase tracking-wide text-emerald-600">{{ row.offering.semester.name }}</p>
+    <h2 class="font-bold text-slate-800 mt-0.5">{{ row.offering.course.code }} — {{ row.offering.course.title }}</h2>
+    {% if row.agg %}
+      <div class="mt-3 flex items-center gap-3">
+        <span class="text-4xl font-extrabold text-amber-500">★ {{ row.agg.avg }}</span>
+        <div>
+          <p class="text-sm text-slate-500">{{ row.agg.count }} anonymous responses</p>
+          <div class="flex gap-1 mt-1">
+            {% for star, count in row.agg.distribution.items %}
+            <span class="px-1.5 py-0.5 rounded bg-slate-100 text-xs">{{ star }}★ ×{{ count }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% if row.agg.comments %}
+      <div class="mt-4 space-y-2">
+        {% for c in row.agg.comments %}
+        <p class="text-sm bg-slate-50 rounded-lg p-3 border border-slate-100">“{{ c }}”</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% else %}
+      <p class="text-sm text-slate-500 mt-3">Aggregate hidden until <b>{{ row.needed }}</b> more response{{ row.needed|pluralize }} arrive — privacy first.</p>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="md:col-span-2 bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400">No taught courses yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

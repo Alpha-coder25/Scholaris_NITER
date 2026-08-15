@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Rate — {{ offering.course.code }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="mb-6">
+    <a href="{% url 'dashboard:student_course' offering.pk %}" class="text-sm text-sky-700 font-semibold hover:underline">← {{ offering.course.code }}</a>
+    <h1 class="text-2xl font-extrabold text-slate-800 mt-1">Rate {{ offering.teacher.get_full_name|default:offering.teacher.username }}</h1>
+    <p class="text-slate-500 text-sm mt-1">{{ offering.course.code }} — {{ offering.course.title }} ({{ offering.semester.name }})</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    <div class="mb-5 px-4 py-3 rounded-lg bg-sky-50 border border-sky-100 text-sm text-sky-800">
+      🔒 <b>Private by design.</b> Your rating is never shown to the teacher or anyone else individually — only the aggregate appears once enough students respond.
+    </div>
+
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-2">Overall rating</label>
+        <div class="flex gap-2" id="star-row">
+          {% for star in "12345" %}
+          <label class="cursor-pointer">
+            <input type="radio" name="stars" value="{{ star }}" class="peer sr-only" {% if existing and existing.stars == star|add:0 %}checked{% endif %} required>
+            <span class="text-3xl transition peer-checked:scale-110 star-{{ star }}" data-star="{{ star }}">☆</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Comment (optional)</label>
+        <textarea name="comment" rows="3" placeholder="What worked well? What could improve?"
+                  class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">{{ existing.comment|default:"" }}</textarea>
+      </div>
+      <button class="w-full py-2.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-bold text-sm">
+        {% if existing %}Update rating{% else %}Submit rating{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const stars = ["#ffd700", "#fbbf24", "#f59e0b", "#f97316", "#f43f5e"];
+  document.querySelectorAll('#star-row .star-1, #star-row .star-2, #star-row .star-3, #star-row .star-4, #star-row .star-5')
+    .forEach(span => {
+      span.addEventListener('mouseenter', () => highlight(span.dataset.star));
+      span.addEventListener('mouseleave', () => highlight(currentValue()));
+    });
+  function highlight(n) {
+    document.querySelectorAll('#star-row [data-star]').forEach(s => {
+      s.textContent = parseInt(s.dataset.star, 10) <= parseInt(n, 10) ? '★' : '☆';
+    });
+  }
+  function currentValue() {
+    const checked = document.querySelector('#star-row input:checked');
+    return checked ? checked.value : 0;
+  }
+  highlight(currentValue());
+</script>
+{% endblock %}

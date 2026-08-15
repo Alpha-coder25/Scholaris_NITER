@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Institution Analytics{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">Institution Analytics</h1>
+  <p class="text-slate-500 text-sm mt-1">Course load, research-ready view, and private aggregated faculty ratings.</p>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+  <div class="px-6 py-4 border-b border-slate-100">
+    <h2 class="font-bold text-slate-800">Course load per teacher</h2>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-6 py-3 font-semibold">Teacher</th>
+        <th class="text-left px-6 py-3 font-semibold">Department</th>
+        <th class="text-left px-6 py-3 font-semibold">Offerings</th>
+        <th class="text-left px-6 py-3 font-semibold">Students</th>
+        <th class="text-left px-6 py-3 font-semibold">Avg rating</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for row in teacher_rows %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-6 py-3 font-medium">{{ row.teacher.get_full_name|default:row.teacher.username }}</td>
+        <td class="px-6 py-3 text-slate-600">{{ row.teacher.department|default:"—" }}</td>
+        <td class="px-6 py-3">{{ row.offering_count }}</td>
+        <td class="px-6 py-3">{{ row.student_total }}</td>
+        <td class="px-6 py-3">
+          {% if row.avg_rating %}
+            <span class="font-bold text-amber-500">★ {{ row.avg_rating }}</span>
+            <span class="text-xs text-slate-400">({{ row.rating_total }} ratings)</span>
+          {% else %}
+            <span class="text-xs text-slate-400">no ratings yet</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <div class="px-6 py-4 border-b border-slate-100">
+    <h2 class="font-bold text-slate-800">Faculty ratings — private &amp; aggregated</h2>
+    <p class="text-xs text-slate-400 mt-0.5">Only shown past a minimum response threshold ({{ RATING_MIN_RESPONSES }}), never per-student.</p>
+  </div>
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-6 py-3 font-semibold">Course offering</th>
+        <th class="text-left px-6 py-3 font-semibold">Teacher</th>
+        <th class="text-left px-6 py-3 font-semibold">Responses</th>
+        <th class="text-left px-6 py-3 font-semibold">Average</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for row in offering_ratings %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-6 py-3 font-medium">{{ row.offering.course.code }} · {{ row.offering.course.title }}</td>
+        <td class="px-6 py-3 text-slate-600">{{ row.offering.teacher.get_full_name|default:row.offering.teacher.username }}</td>
+        <td class="px-6 py-3">
+          {% if row.agg %}
+            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">{{ row.agg.count }}</span>
+          {% else %}
+            <span class="text-xs text-slate-400">{{ row.offering.ratings.count }}/{{ RATING_MIN_RESPONSES }} — hidden until threshold</span>
+          {% endif %}
+        </td>
+        <td class="px-6 py-3">
+          {% if row.agg %}
+            <span class="font-bold text-amber-500">★ {{ row.agg.avg }}</span>
+          {% else %}
+            <span class="text-slate-300">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">No course offerings to analyse yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
