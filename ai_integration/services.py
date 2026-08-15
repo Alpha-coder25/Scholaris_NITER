@@ -149,7 +149,9 @@ def _generate_offline(material_text, num_mcq=5, num_cq=2):
         while len(others) < 3:
             others.append("The material does not discuss this point.")
         options = others[:3] + [sent]
-        random.Random(42 + i).shuffle(options)
+        # nosec B311 -- shuffle is for display variety of MCQ options in the
+        # offline demo generator only; nothing security-related depends on it.
+        random.Random(42 + i).shuffle(options)  # nosec B311
         topic = _topic_of(sent)
         drafts.append(
             {

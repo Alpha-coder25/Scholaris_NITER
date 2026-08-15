@@ -34,14 +34,14 @@
       {% for m in materials %}
       <li class="px-6 py-3.5 flex items-center justify-between gap-3">
         <div class="min-w-0">
-          <p class="font-medium truncate">{{ m.title }} <span class="text-slate-400 text-xs">v{{ m.version }}</span></p>
-          <p class="text-xs text-slate-400">{{ m.filename }} · {{ m.uploaded_at|date:"M d, H:i" }} · by {{ m.uploaded_by.get_full_name|default:m.uploaded_by.username }}</p>
+          <p class="font-medium truncate">{{ m.title }} <span class="text-slate-500 text-xs">v{{ m.version }}</span></p>
+          <p class="text-xs text-slate-500">{{ m.filename }} · {{ m.uploaded_at|date:"M d, H:i" }} · by {{ m.uploaded_by.get_full_name|default:m.uploaded_by.username }}</p>
         </div>
         <a href="{% url 'materials:generate_questions' offering.pk m.pk %}"
            class="shrink-0 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold">✨ Generate questions</a>
       </li>
       {% empty %}
-      <li class="px-6 py-10 text-center text-slate-400">Nothing uploaded yet.</li>
+      <li class="px-6 py-10 text-center text-slate-500">Nothing uploaded yet.</li>
       {% endfor %}
     </ul>
   </div>

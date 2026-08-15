@@ -1,0 +1,68 @@
+name: CI — tests, SAST, audits, secret scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Django tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+      - name: Run Django test suite (SQLite, no DATABASE_URL)
+        env:
+          DATABASE_URL: ""
+          SECRET_KEY: "ci-test-secret-key"
+          DEBUG: "0"
+        run: |
+          python manage.py test --verbosity 1
+
+  sast:
+    name: SAST (bandit + semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: |
+          pip install bandit semgrep
+      - name: Bandit
+        run: |
+          bandit -r accounts academics dashboard exams materials ratings ai_integration -x venv,node_modules -q -f txt
+      - name: Semgrep (security-audit rules)
+        run: |
+          semgrep scan --config p/security-audit --severity ERROR --severity WARNING --error --metrics=off
+
+  audit:
+    name: Dependency & secret audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+      - name: npm audit
+        run: |
+          npm install --no-audit --no-fund
+          npm audit --audit-level=high
+      - name: gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

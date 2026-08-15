@@ -10,12 +10,12 @@
 <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
   <div class="flex items-center gap-6 flex-wrap">
     <div>
-      <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Your score</p>
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Your score</p>
       <p class="text-4xl font-extrabold text-sky-700">{{ attempt.total_score }}<span class="text-slate-300 text-2xl"> / {{ attempt.max_score }}</span></p>
     </div>
     <div class="h-12 w-px bg-slate-200 hidden sm:block"></div>
     <div>
-      <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
+      <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
       <p class="mt-1">
         <span class="px-3 py-1 rounded-full text-sm font-bold
           {% if attempt.status == 'graded' %}bg-emerald-50 text-emerald-700
@@ -67,10 +67,10 @@
       {% endif %}
       {% if not a.exam_question.question.is_mcq %}
       <div class="mt-2 bg-slate-50 rounded-lg p-3 border border-slate-100 text-sm text-slate-600 whitespace-pre-wrap">
-        {% if a.answer_data %}{{ a.answer_data }}{% else %}<i class="text-slate-400">No answer submitted.</i>{% endif %}
+        {% if a.answer_data %}{{ a.answer_data }}{% else %}<i class="text-slate-500">No answer submitted.</i>{% endif %}
       </div>
       {% if a.graded_comment %}
-      <p class="text-xs text-slate-400 mt-2">Teacher: “{{ a.graded_comment }}”</p>
+      <p class="text-xs text-slate-500 mt-2">Teacher: “{{ a.graded_comment }}”</p>
       {% endif %}
       {% endif %}
     </li>

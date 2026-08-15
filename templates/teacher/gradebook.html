@@ -26,7 +26,7 @@
       </div>
     </div>
     {% empty %}
-    <p class="text-slate-400 text-sm col-span-3">No attempts yet.</p>
+    <p class="text-slate-500 text-sm col-span-3">No attempts yet.</p>
     {% endfor %}
   </div>
 </div>
@@ -64,13 +64,13 @@
           </td>
           {% endwith %}
           {% endfor %}
-          <td class="text-center px-6 py-3 font-extrabold">{{ row.attempt.total_score }}<span class="text-slate-400 font-normal">/{{ row.attempt.max_score }}</span></td>
+          <td class="text-center px-6 py-3 font-extrabold">{{ row.attempt.total_score }}<span class="text-slate-500 font-normal">/{{ row.attempt.max_score }}</span></td>
           <td class="px-6 py-3">
             <span class="px-2 py-0.5 rounded-full text-xs font-bold {% if row.attempt.status == 'graded' %}bg-emerald-50 text-emerald-700{% else %}bg-amber-50 text-amber-700{% endif %}">{{ row.attempt.get_status_display }}</span>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="10" class="px-6 py-8 text-center text-slate-400">No attempts yet.</td></tr>
+        <tr><td colspan="10" class="px-6 py-8 text-center text-slate-500">No attempts yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>

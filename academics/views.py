@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
@@ -27,15 +27,18 @@ def course_offering_list(request):
         section = request.POST.get("section", "A").strip() or "A"
         teacher = get_object_or_404(User, pk=teacher_id, role="teacher")
         try:
-            CourseOffering.objects.create(
-                course=course, semester=semester, teacher=teacher, section=section
-            )
+            with transaction.atomic():
+                CourseOffering.objects.create(
+                    course=course, semester=semester, teacher=teacher, section=section
+                )
             messages.success(
                 request,
                 f"Assigned {course.code} to {teacher.get_full_name() or teacher.username} "
                 f"({semester.name}, Section {section}).",
             )
         except IntegrityError:
+            # Savepoint inside atomic() lets the duplicate be rejected without
+            # poisoning the surrounding transaction.
             messages.error(
                 request,
                 f"{course.code} Section {section} already exists for {semester.name}.",

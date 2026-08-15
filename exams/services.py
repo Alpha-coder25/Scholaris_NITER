@@ -66,32 +66,33 @@ def submit_answer(attempt, answer_data):
     within_limit = _elapsed(answer) <= eq.time_limit_seconds
     within_overall = _overall_elapsed(attempt) <= attempt.exam.total_duration_seconds
 
-    if not within_limit:
-        # Timer expired: lock whatever was submitted (or blank), no credit.
-        answer.answer_data = answer_data
-        answer.submitted_at = now
-        answer.locked = True
-        answer.auto_score = 0 if question.is_mcq else None
-        answer.save(update_fields=["answer_data", "submitted_at", "locked", "auto_score"])
-    elif not within_overall:
+    if not within_overall:
+        # Overall exam time is up: the exam has ended. Lock the answer with no
+        # credit and finalise the whole attempt right now.
         answer.answer_data = answer_data
         answer.submitted_at = now
         answer.locked = True
         answer.auto_score = 0 if question.is_mcq else None
         answer.save(update_fields=["answer_data", "submitted_at", "locked", "auto_score"])
         return finalize(attempt)
-    else:
+    if not within_limit:
+        # Per-question timer expired (overall time still OK): lock whatever was
+        # submitted (or blank) with no credit, and advance to the next question.
         answer.answer_data = answer_data
         answer.submitted_at = now
-        answer.locked = False
-        if question.is_mcq:
-            answer.auto_score = (
-                eq.marks if answer_data == question.correct_answer else 0
-            )
-        answer.save(
-            update_fields=["answer_data", "submitted_at", "locked", "auto_score"]
-        )
+        answer.locked = True
+        answer.auto_score = 0 if question.is_mcq else None
+        answer.save(update_fields=["answer_data", "submitted_at", "locked", "auto_score"])
+        return advance(attempt)
 
+    answer.answer_data = answer_data
+    answer.submitted_at = now
+    answer.locked = False
+    if question.is_mcq:
+        answer.auto_score = eq.marks if answer_data == question.correct_answer else 0
+    answer.save(
+        update_fields=["answer_data", "submitted_at", "locked", "auto_score"]
+    )
     return advance(attempt)
 
 
@@ -101,22 +102,23 @@ def heartbeat(attempt):
     timer has lapsed, finalise. Returns True if state changed."""
     answer = current_answer(attempt)
     if answer is None:
-        return finalize(attempt), True
+        finalize(attempt)
+        return True
 
     changed = False
-    if _elapsed(answer) > answer.exam_question.time_limit_seconds:
-        answer.submitted_at = timezone.now()
-        answer.locked = True
-        answer.auto_score = 0 if answer.exam_question.question.is_mcq else None
-        answer.save(update_fields=["submitted_at", "locked", "auto_score"])
-        advance(attempt)
-        changed = True
-    elif _overall_elapsed(attempt) > attempt.exam.total_duration_seconds:
+    if _overall_elapsed(attempt) > attempt.exam.total_duration_seconds:
         answer.submitted_at = timezone.now()
         answer.locked = True
         answer.auto_score = 0 if answer.exam_question.question.is_mcq else None
         answer.save(update_fields=["submitted_at", "locked", "auto_score"])
         finalize(attempt)
+        changed = True
+    elif _elapsed(answer) > answer.exam_question.time_limit_seconds:
+        answer.submitted_at = timezone.now()
+        answer.locked = True
+        answer.auto_score = 0 if answer.exam_question.question.is_mcq else None
+        answer.save(update_fields=["submitted_at", "locked", "auto_score"])
+        advance(attempt)
         changed = True
     return changed
 

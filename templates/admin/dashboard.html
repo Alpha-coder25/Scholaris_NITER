@@ -8,19 +8,19 @@
 
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
   <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Departments</p>
+    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Departments</p>
     <p class="text-3xl font-extrabold text-violet-700 mt-1">{{ departments.count }}</p>
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Course Offerings</p>
+    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Course Offerings</p>
     <p class="text-3xl font-extrabold text-violet-700 mt-1">{{ total_courses }}</p>
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Teachers</p>
+    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Teachers</p>
     <p class="text-3xl font-extrabold text-violet-700 mt-1">{{ total_teachers }}</p>
   </div>
   <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Students</p>
+    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Students</p>
     <p class="text-3xl font-extrabold text-violet-700 mt-1">{{ total_students }}</p>
   </div>
 </div>
@@ -49,7 +49,7 @@
           <td class="px-6 py-3"><span class="px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-xs font-bold">{{ o.enrollment_count }}</span></td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">No course assignments yet — <a class="text-violet-600 underline" href="{% url 'academics:course_offerings' %}">assign one</a>.</td></tr>
+        <tr><td colspan="4" class="px-6 py-8 text-center text-slate-500">No course assignments yet — <a class="text-violet-600 underline" href="{% url 'academics:course_offerings' %}">assign one</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -63,7 +63,7 @@
       {% for d in departments %}
       <li class="px-6 py-3 flex items-center justify-between">
         <span class="font-medium">{{ d.name }}</span>
-        <span class="text-xs text-slate-400">{{ d.courses.count }} courses</span>
+        <span class="text-xs text-slate-500">{{ d.courses.count }} courses</span>
       </li>
       {% endfor %}
     </ul>

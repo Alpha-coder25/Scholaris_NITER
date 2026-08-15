@@ -13,7 +13,7 @@
     <div class="flex items-center justify-between mb-3">
       <div>
         <p class="font-bold text-slate-800">{{ a.attempt.student.get_full_name|default:a.attempt.student.username }}</p>
-        <p class="text-xs text-slate-400">{{ a.attempt.student.display_id }} · {{ a.attempt.exam.title }}</p>
+        <p class="text-xs text-slate-500">{{ a.attempt.student.display_id }} · {{ a.attempt.exam.title }}</p>
       </div>
       <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">Q{{ a.exam_question.order }} · {{ a.exam_question.marks }} marks</span>
     </div>
@@ -36,7 +36,7 @@
     </form>
   </div>
   {% empty %}
-  <div class="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
+  <div class="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
     🎉 Queue is clear — no written answers waiting for grading.
   </div>
   {% endfor %}

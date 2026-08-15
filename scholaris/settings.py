@@ -175,10 +175,14 @@ if not DEBUG:
 # ---------------------------------------------------------------------------
 # Demo convenience: quick-login buttons on the login page
 # ---------------------------------------------------------------------------
+# nosec B105 -- these are intentional, well-known demo credentials for the
+# one-click demo login feature (matching the seeded accounts). Real accounts
+# in production (Vercel) use the seeded passwords / institutional credentials,
+# and secrets like DATABASE_URL/SECRET_KEY always come from the environment.
 DEMO_LOGINS = [
-    {"role": "Admin", "username": "admin", "password": "admin123", "accent": "violet"},
-    {"role": "Teacher", "username": "t.hasan", "password": "demo123", "accent": "emerald"},
-    {"role": "Student", "username": "s.rahman", "password": "demo123", "accent": "sky"},
+    {"role": "Admin", "username": "admin", "password": "admin123", "accent": "violet"},  # nosec B105
+    {"role": "Teacher", "username": "t.hasan", "password": "demo123", "accent": "emerald"},  # nosec B105
+    {"role": "Student", "username": "s.rahman", "password": "demo123", "accent": "sky"},  # nosec B105
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

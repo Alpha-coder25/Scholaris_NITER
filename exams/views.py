@@ -174,6 +174,8 @@ def exam_builder(request, offering_id):
         errors = []
         if not title:
             errors.append("Exam title is required.")
+        if len(title) > 200:
+            errors.append("Exam title must be at most 200 characters.")
         if not selected:
             errors.append("Select at least one question.")
         try:
@@ -284,8 +286,13 @@ def grading_queue(request, offering_id):
     )
 
     if request.method == "POST":
+        # Scope the answer to *this* offering so a teacher can never grade an
+        # answer belonging to another teacher's course.
         answer = get_object_or_404(
-            ExamAnswer, pk=request.POST.get("answer_id"), manual_score__isnull=True
+            ExamAnswer,
+            pk=request.POST.get("answer_id"),
+            manual_score__isnull=True,
+            attempt__exam__course_offering=offering,
         )
         try:
             marks = int(request.POST.get("marks"))
@@ -432,7 +439,14 @@ def attempt_answer(request, attempt_id):
     if attempt.status != "in_progress":
         return JsonResponse({"status": "error", "error": "Attempt already submitted."})
 
-    body = json.loads(request.body or b"{}")
+    try:
+        body = json.loads(request.body or b"{}")
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        return JsonResponse(
+            {"status": "error", "error": "Malformed request body."}, status=400
+        )
     raw = body.get("answer")
 
     # Inspect the question being answered *before* submitting, then evaluate

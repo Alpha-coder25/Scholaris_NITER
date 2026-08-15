@@ -8,9 +8,17 @@ from academics.models import Department
 from .models import User
 
 
+def _role_home(user):
+    if user.role == "admin":
+        return "dashboard:admin_dashboard"
+    if user.role == "teacher":
+        return "dashboard:teacher_dashboard"
+    return "dashboard:student_dashboard"
+
+
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("dashboard:home")
+        return redirect(_role_home(request.user))
 
     # One-click demo login: /accounts/login/?demo=<username> fills the form
     # with the seeded demo credentials and submits it.
@@ -30,7 +38,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
-            return redirect("dashboard:home")
+            return redirect(_role_home(user))
         messages.error(request, "Invalid username or password.")
     else:
         form = AuthenticationForm(request)
@@ -55,6 +63,16 @@ def signup_view(request):
         errors = []
         if len(username) < 3:
             errors.append("Username must be at least 3 characters.")
+        if len(username) > 150:
+            errors.append("Username must be at most 150 characters.")
+        if len(first_name) > 150 or len(last_name) > 150:
+            errors.append("Names must be at most 150 characters each.")
+        if len(email) > 254:
+            errors.append("Email must be at most 254 characters.")
+        if len(student_id) > 20:
+            errors.append("Student ID must be at most 20 characters.")
+        if len(password) > 128:
+            errors.append("Password must be at most 128 characters.")
         if User.objects.filter(username=username).exists():
             errors.append("That username is already taken.")
         if len(password) < 6:

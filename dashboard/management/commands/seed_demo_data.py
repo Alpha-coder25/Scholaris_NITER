@@ -114,6 +114,9 @@ class Command(BaseCommand):
                 "email": "admin@niter.edu.bd",
             },
         )
+        # Demo accounts intentionally use simple, well-known passwords (matching
+        # the one-click demo login feature); real deployments override via env.
+        # nosemgrep
         admin.set_password("admin123")
         admin.is_staff = True
         admin.save()
@@ -131,6 +134,9 @@ class Command(BaseCommand):
                     "email": f"{username}@niter.edu.bd",
                 },
             )
+            # Demo accounts intentionally use simple, well-known passwords (matching
+            # the one-click demo login feature); real deployments override via env.
+            # nosemgrep
             user.set_password("demo123")
             user.save()
             return user

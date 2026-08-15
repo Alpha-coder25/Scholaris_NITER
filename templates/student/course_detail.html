@@ -15,13 +15,14 @@
         {% for m in materials %}
         <li class="px-5 py-3 flex items-center justify-between gap-3">
           <div class="min-w-0">
-            <p class="font-medium truncate">{{ m.title }} <span class="text-slate-400 text-xs">v{{ m.version }}</span></p>
-            <p class="text-xs text-slate-400">{{ m.uploaded_at|date:"M d, H:i" }}</p>
+            <p class="font-medium truncate">{{ m.title }} <span class="text-slate-500 text-xs">v{{ m.version }}</span></p>
+            <p class="text-xs text-slate-500">{{ m.uploaded_at|date:"M d, H:i" }}</p>
           </div>
+          <!-- nosemgrep -- file.url is generated server-side by Django's storage (MEDIA_URL + sanitized path), never user-controlled, so javascript: URIs are not possible here. -->
           <a href="{{ m.file.url }}" class="shrink-0 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-bold">Download</a>
         </li>
         {% empty %}
-        <li class="px-5 py-8 text-center text-slate-400">No materials uploaded yet.</li>
+        <li class="px-5 py-8 text-center text-slate-500">No materials uploaded yet.</li>
         {% endfor %}
       </ul>
     </div>
@@ -33,7 +34,7 @@
         <li class="px-5 py-4 flex items-center justify-between gap-3">
           <div>
             <p class="font-bold">{{ item.exam.title }}</p>
-            <p class="text-xs text-slate-400 mt-0.5">
+            <p class="text-xs text-slate-500 mt-0.5">
               {{ item.exam.question_count }} questions · {{ item.exam.total_duration_seconds }}s total ·
               {% if item.exam.is_open %}window open now{% elif item.exam.is_scheduled %}starts {{ item.exam.start_time|date:"M d, H:i" }}{% else %}ended {{ item.exam.end_time|date:"M d, H:i" }}{% endif %}
             </p>
@@ -46,14 +47,14 @@
             {% elif item.exam.is_open %}
               <a href="{% url 'exams:exam_take' item.exam.pk %}" class="px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 text-white font-bold text-xs">Start exam</a>
             {% elif item.exam.is_scheduled %}
-              <span class="px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold">Not open yet</span>
+              <span class="px-3 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">Not open yet</span>
             {% else %}
-              <span class="px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold">Closed</span>
+              <span class="px-3 py-2 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold">Closed</span>
             {% endif %}
           </div>
         </li>
         {% empty %}
-        <li class="px-5 py-8 text-center text-slate-400">No exams scheduled yet.</li>
+        <li class="px-5 py-8 text-center text-slate-500">No exams scheduled yet.</li>
         {% endfor %}
       </ul>
     </div>
@@ -63,8 +64,8 @@
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
       <h2 class="font-bold text-slate-800 mb-1">Your teacher</h2>
       <p class="font-semibold text-slate-700">{{ offering.teacher.get_full_name|default:offering.teacher.username }}</p>
-      <p class="text-xs text-slate-400">{{ offering.teacher.department|default:"—" }}</p>
-      <p class="text-xs text-slate-400 mt-0.5">Employee ID: {{ offering.teacher.display_id }}</p>
+      <p class="text-xs text-slate-500">{{ offering.teacher.department|default:"—" }}</p>
+      <p class="text-xs text-slate-500 mt-0.5">Employee ID: {{ offering.teacher.display_id }}</p>
     </div>
 
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
@@ -73,7 +74,7 @@
         <p class="text-sm text-slate-500">You rated <span class="text-amber-500 font-bold">★ {{ my_rating.stars }}</span>{% if my_rating.comment %} — “{{ my_rating.comment }}”{% endif %}</p>
         <a href="{% url 'ratings:rate_offering' offering.pk %}" class="inline-block mt-3 text-sm font-bold text-sky-700 hover:underline">Update rating</a>
       {% else %}
-        <p class="text-xs text-slate-400 mb-3">Ratings are private &amp; aggregated — only averages past a threshold are ever shown.</p>
+        <p class="text-xs text-slate-500 mb-3">Ratings are private &amp; aggregated — only averages past a threshold are ever shown.</p>
         <a href="{% url 'ratings:rate_offering' offering.pk %}" class="inline-block px-4 py-2 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold">Rate this course</a>
       {% endif %}
     </div>

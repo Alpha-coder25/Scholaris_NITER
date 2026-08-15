@@ -27,13 +27,13 @@
       {% for m in materials %}
       <li class="px-5 py-3 flex items-center justify-between gap-2">
         <div class="min-w-0">
-          <p class="font-medium truncate">{{ m.title }} <span class="text-slate-400 text-xs">v{{ m.version }}</span></p>
-          <p class="text-xs text-slate-400">{{ m.filename }} · {{ m.uploaded_at|date:"M d, H:i" }}</p>
+          <p class="font-medium truncate">{{ m.title }} <span class="text-slate-500 text-xs">v{{ m.version }}</span></p>
+          <p class="text-xs text-slate-500">{{ m.filename }} · {{ m.uploaded_at|date:"M d, H:i" }}</p>
         </div>
         <a href="{% url 'materials:generate_questions' offering.pk m.pk %}" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold">✨ Generate questions</a>
       </li>
       {% empty %}
-      <li class="px-5 py-8 text-center text-slate-400 text-sm">No materials yet.<br>Upload a lecture to start the AI flow.</li>
+      <li class="px-5 py-8 text-center text-slate-500 text-sm">No materials yet.<br>Upload a lecture to start the AI flow.</li>
       {% endfor %}
     </ul>
   </div>
@@ -48,10 +48,10 @@
       {% for exam in exams %}
       <li class="px-5 py-3">
         <a href="{% url 'exams:exam_detail' exam.pk %}" class="font-medium hover:text-emerald-700">{{ exam.title }}</a>
-        <p class="text-xs text-slate-400 mt-0.5">{{ exam.question_count }} questions · {{ exam.total_duration_seconds }}s total · starts {{ exam.start_time|date:"M d, H:i" }}{% if exam.is_open %} · <span class="text-emerald-600 font-semibold">open now</span>{% elif exam.is_scheduled %} · <span class="text-sky-600 font-semibold">scheduled</span>{% else %} · <span class="text-slate-400">ended</span>{% endif %}</p>
+        <p class="text-xs text-slate-500 mt-0.5">{{ exam.question_count }} questions · {{ exam.total_duration_seconds }}s total · starts {{ exam.start_time|date:"M d, H:i" }}{% if exam.is_open %} · <span class="text-emerald-600 font-semibold">open now</span>{% elif exam.is_scheduled %} · <span class="text-sky-600 font-semibold">scheduled</span>{% else %} · <span class="text-slate-500">ended</span>{% endif %}</p>
       </li>
       {% empty %}
-      <li class="px-5 py-8 text-center text-slate-400 text-sm">No exams yet.<br>Build one from your approved question bank.</li>
+      <li class="px-5 py-8 text-center text-slate-500 text-sm">No exams yet.<br>Build one from your approved question bank.</li>
       {% endfor %}
     </ul>
     <div class="px-5 py-3 border-t border-slate-100">
@@ -71,10 +71,10 @@
         {% for e in students %}
         <li class="px-5 py-2.5 flex justify-between">
           <span class="font-medium">{{ e.student.get_full_name|default:e.student.username }}</span>
-          <span class="text-xs text-slate-400">{{ e.student.display_id }}</span>
+          <span class="text-xs text-slate-500">{{ e.student.display_id }}</span>
         </li>
         {% empty %}
-        <li class="px-5 py-8 text-center text-slate-400">No enrollments yet.</li>
+        <li class="px-5 py-8 text-center text-slate-500">No enrollments yet.</li>
         {% endfor %}
       </ul>
     </div>
@@ -83,7 +83,7 @@
       <h2 class="font-bold text-slate-800 mb-1">Your rating — this course</h2>
       {% if my_rating %}
         <p class="text-2xl font-extrabold text-amber-500">★ {{ my_rating.avg }}</p>
-        <p class="text-xs text-slate-400">from {{ my_rating.count }} anonymous responses</p>
+        <p class="text-xs text-slate-500">from {{ my_rating.count }} anonymous responses</p>
         <div class="mt-2 flex gap-1 text-xs">
           {% for star, count in my_rating.distribution.items %}
           <span class="px-1.5 py-0.5 rounded bg-slate-100">{{ star }}★ ×{{ count }}</span>

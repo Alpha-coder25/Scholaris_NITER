@@ -37,7 +37,7 @@
   {% if mcq %}
   <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-slate-100">
-      <h2 class="font-bold text-slate-800">MCQ questions — auto-graded <span class="text-xs font-normal text-slate-400">({{ mcq|length }} in bank)</span></h2>
+      <h2 class="font-bold text-slate-800">MCQ questions — auto-graded <span class="text-xs font-normal text-slate-500">({{ mcq|length }} in bank)</span></h2>
     </div>
     <div class="divide-y divide-slate-100">
       {% for q in mcq %}
@@ -45,7 +45,7 @@
         <input type="checkbox" name="q_{{ q.pk }}" class="mt-1 w-4 h-4 accent-emerald-600">
         <div class="flex-1">
           <p class="text-sm font-medium">{{ q.text }}</p>
-          <p class="text-xs text-slate-400 mt-1 truncate">
+          <p class="text-xs text-slate-500 mt-1 truncate">
             {% for opt in q.options %}{% if forloop.counter0 == q.correct_answer %}<span class="text-emerald-600">✓ {{ opt }}</span>{% else %}{{ opt }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
           </p>
         </div>
@@ -68,7 +68,7 @@
   {% if cq %}
   <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b border-slate-100">
-      <h2 class="font-bold text-slate-800">CQ questions — teacher-graded <span class="text-xs font-normal text-slate-400">({{ cq|length }} in bank)</span></h2>
+      <h2 class="font-bold text-slate-800">CQ questions — teacher-graded <span class="text-xs font-normal text-slate-500">({{ cq|length }} in bank)</span></h2>
     </div>
     <div class="divide-y divide-slate-100">
       {% for q in cq %}
@@ -94,7 +94,7 @@
   {% endif %}
 
   {% if not mcq and not cq %}
-  <div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400 text-sm">
+  <div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-500 text-sm">
     No approved questions in the bank yet. <a class="text-emerald-700 font-semibold underline" href="{% url 'exams:question_review' offering.pk %}">Review and approve AI drafts first</a>.
   </div>
   {% endif %}

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -66,6 +67,13 @@ class CourseOffering(models.Model):
         ordering = ["-semester", "course__code", "section"]
         unique_together = ("course", "semester", "section")
 
+    def save(self, *args, **kwargs):
+        # Model-level enforcement: a course offering can only be taught by a
+        # user with role 'teacher' (views also gate this; belt and braces).
+        if self.teacher_id and self.teacher.role != "teacher":
+            raise ValidationError("Only a user with role 'teacher' can teach a course offering.")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.course.code} {self.course.title} (Sec {self.section}) — {self.semester.name}"
 
@@ -92,6 +100,12 @@ class Enrollment(models.Model):
 
     class Meta:
         unique_together = ("student", "course_offering")
+
+    def save(self, *args, **kwargs):
+        # Model-level enforcement: only users with role 'student' can enroll.
+        if self.student_id and self.student.role != "student":
+            raise ValidationError("Only a user with role 'student' can enroll in a course.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.student} → {self.course_offering}"
