@@ -154,10 +154,18 @@ Deploying / re-deploying:
 - Uploaded material *files* are ephemeral on serverless disk; extracted text is stored in the DB so AI generation always works. For a persistent file store, add S3-compatible storage later.
 - Free-tier Neon cold-starts after idle — hit the app a few minutes before a live demo.
 
+## Resetting the demo data
+
+```bash
+python manage.py reset_demo_data         # flush + reseed, asks for confirmation
+python manage.py reset_demo_data --yes   # non-interactive (CI / before a live demo)
+```
+
+Restores the shared DB to the exact seeded state (12 demo users, 5 offerings, question bank, 1 live exam, 6 ratings). Use the **direct** (non-pooled) Neon connection string for this maintenance command if the pooled connection drops mid-flush.
+
 ## Verification
 
 ```bash
-cd scholaris
 python -c "import verify_demo"     # runs every MVP flow through Django's test client
 ```
 
