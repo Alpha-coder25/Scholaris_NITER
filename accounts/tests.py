@@ -11,8 +11,6 @@ User = get_user_model()
 class AuthTests(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name="CSE")
-        # Usernames/passwords match settings.DEMO_LOGINS so the one-click demo
-        # quick-login feature can be tested directly.
         self.admin = User.objects.create_user(
             username="admin", password="admin123", role="admin", is_staff=True)
         self.teacher = User.objects.create_user(username="t.hasan", password="demo123", role="teacher")
@@ -25,15 +23,6 @@ class AuthTests(TestCase):
 
     def test_login_wrong_password(self):
         self.assertFalse(self.c.login(username="t.hasan", password="wrongpass"))
-
-    def test_demo_quick_login_get_for_each_role(self):
-        for username, expected in [("admin", "/admin/dashboard/"),
-                                   ("t.hasan", "/teacher/dashboard/"),
-                                   ("s.rahman", "/student/dashboard/")]:
-            c = Client()
-            r = c.get(reverse("accounts:login") + "?demo=" + username)
-            self.assertEqual(r.status_code, 302)
-            self.assertIn(expected, r.url)
 
     def test_unauthenticated_root_serves_landing(self):
         r = self.c.get("/")
@@ -83,12 +72,6 @@ class AuthTests(TestCase):
         old_key = self.c.session.session_key
         self.c.login(username="t.hasan", password="demo123")
         self.assertNotEqual(self.c.session.session_key, old_key)
-
-    def test_demo_login_ignores_unknown_username(self):
-        """?demo= only works for the seeded accounts — unknown names get the form."""
-        r = self.c.get(reverse("accounts:login") + "?demo=somebody")
-        self.assertEqual(r.status_code, 200)  # plain login form, no auto-login
-        self.assertFalse(self.c.session.get("_auth_user_id"))
 
     def test_signup_cannot_set_role_admin(self):
         """Mass assignment: posting role=admin must not elevate a signup."""

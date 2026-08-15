@@ -45,17 +45,7 @@
       </form>
 
       <div class="mt-6 pt-5 border-t border-slate-100">
-        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Demo accounts — one-click</p>
-        <div class="grid grid-cols-3 gap-2">
-          {% for demo in DEMO_LOGINS %}
-          <a href="?demo={{ demo.username }}"
-             class="text-center py-2 rounded-lg border text-sm font-semibold
-                    {% if demo.accent == 'violet' %}bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100{% elif demo.accent == 'emerald' %}bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100{% else %}bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100{% endif %}">
-            {{ demo.role }}
-          </a>
-          {% endfor %}
-        </div>
-        <p class="mt-4 text-center text-sm text-slate-500">
+        <p class="text-center text-sm text-slate-500">
           New here? <a href="{% url 'accounts:signup' %}" class="font-semibold text-violet-700 hover:underline">Sign up as a student</a>
         </p>
       </div>

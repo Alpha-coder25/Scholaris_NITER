@@ -49,16 +49,39 @@ print("\n=== Scholaris MVP verification ===\n")
 
 # ------------------------------------------------------------------ context
 offering = CourseOffering.objects.get(course__code="CSE-2101", semester__name="Spring 2026")
-student = offering.enrollments.first().student
-teacher = offering.teacher
-exam_seed = offering.exams.first()
+
+# Seeded accounts now have random (or SEED_PASSWORD) credentials — there are no
+# published demo logins. Create dedicated throwaway accounts for the checks so
+# the script never depends on knowing seeded passwords.
+from accounts.models import User as ScholarisUser  # noqa: E402
+from academics.models import Enrollment  # noqa: E402
+
+_verify_pw = "VerifyPass-2026!"
+_verify_admin = ScholarisUser.objects.create_user(
+    username="verify_admin", password=_verify_pw, role="admin", is_staff=True)
+_verify_teacher = ScholarisUser.objects.create_user(
+    username="verify_teacher", password=_verify_pw, role="teacher")
+_verify_student = ScholarisUser.objects.create_user(
+    username="verify_student", password=_verify_pw, role="student")
+_verify_student2 = ScholarisUser.objects.create_user(
+    username="verify_student2", password=_verify_pw, role="student")
+# Assign the verify teacher to the seeded offering (teacher-scoped views
+# require the logged-in user to own the course) and enroll the throwaway
+# students so they can take its exam.
+offering.teacher = _verify_teacher
+offering.save()
+teacher = _verify_teacher
+Enrollment.objects.get_or_create(student=_verify_student, course_offering=offering)
+Enrollment.objects.get_or_create(student=_verify_student2, course_offering=offering)
+student = _verify_student
+student2 = _verify_student2
 
 c_admin, c_teacher, c_student = Client(), Client(), Client()
 
 # ------------------------------------------------------------ 1. auth + RBAC
-check("login: admin", c_admin.login(username="admin", password="admin123"))
-check("login: teacher", c_teacher.login(username="t.hasan", password="demo123"))
-check("login: student", c_student.login(username=student.username, password="demo123"))
+check("login: admin", c_admin.login(username=_verify_admin.username, password=_verify_pw))
+check("login: teacher", c_teacher.login(username=_verify_teacher.username, password=_verify_pw))
+check("login: student", c_student.login(username=_verify_student.username, password=_verify_pw))
 
 r = c_admin.get("/admin/dashboard/")
 check("admin dashboard 200", r.status_code == 200)
@@ -179,9 +202,8 @@ check("MCQ auto-graded (2 correct, 1 wrong)", mcq_scores == [5, 5, 0], str(mcq_s
 
 # ------------------------------------------------------- heartbeat/timeout path
 # Use a second enrolled student so the unique (exam, student) constraint holds.
-student2 = offering.enrollments.exclude(student=student).first().student
 c_student2 = Client()
-c_student2.login(username=student2.username, password="demo123")
+c_student2.login(username=student2.username, password=_verify_pw)
 attempt2 = create_attempt(exam, student2)
 cur = current_answer(attempt2)
 # Rewind the server timestamp past the time limit, then submit -> must lock & score 0.
@@ -230,13 +252,11 @@ check("teacher gradebook 200", r.status_code == 200)
 check("gradebook shows class breakdown", b"Per-question class breakdown" in r.content)
 
 # ------------------------------------------------- 10. ratings + aggregation
-# Rate as a student who has not rated this offering yet (seeded students
-# already have ratings, so pick s.uddin for re-runnability).
-rate_student = offering.enrollments.select_related("student").get(
-    student__username="s.uddin"
-).student
+# Rate as a student who has not rated this offering yet (the throwaway
+# student — re-runnable because we delete any prior row first).
+rate_student = student
 c_rate = Client()
-c_rate.login(username=rate_student.username, password="demo123")
+c_rate.login(username=rate_student.username, password=_verify_pw)
 Rating.objects.filter(course_offering=offering, student=rate_student).delete()
 r = c_rate.post(
     f"/student/course/{offering.pk}/rate/",

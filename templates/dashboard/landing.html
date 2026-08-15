@@ -38,9 +38,6 @@
       <a href="{% url 'accounts:login' %}" class="px-8 py-3 rounded-xl bg-white text-violet-800 font-bold text-base hover:bg-violet-50 shadow-lg">Log in</a>
       <a href="{% url 'accounts:signup' %}" class="px-8 py-3 rounded-xl bg-violet-500/30 hover:bg-violet-500/50 text-white font-bold text-base border border-white/40">Sign up as a student</a>
     </div>
-    <p class="mt-6 text-xs text-white/60">
-      Demo accounts: one-click logins for Admin · Teacher · Student ↓
-    </p>
   </div>
 </section>
 
@@ -288,26 +285,12 @@
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
     <ul class="space-y-4 text-sm text-slate-600 leading-relaxed">
       <li class="flex gap-3"><span class="shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 font-bold text-xs flex items-center justify-center">1</span>
-        <span><b>Students</b> — press <b>“Sign up as a student”</b> above (or use the demo account below). After sign-up you're logged in automatically and can enroll in courses.</span></li>
+        <span><b>Students</b> — press <b>“Sign up as a student”</b> above. After sign-up you're logged in automatically and can enroll in courses.</span></li>
       <li class="flex gap-3"><span class="shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 font-bold text-xs flex items-center justify-center">2</span>
-        <span><b>Teachers &amp; Admins</b> — accounts are created by the institution. Log in with the credentials you were given (or use the demo accounts below).</span></li>
+        <span><b>Teachers &amp; Admins</b> — accounts are created by the institution. Log in with the credentials you were given.</span></li>
       <li class="flex gap-3"><span class="shrink-0 w-6 h-6 rounded-full bg-violet-100 text-violet-700 font-bold text-xs flex items-center justify-center">3</span>
         <span>Everyone lands on a <b>role-specific dashboard</b> after logging in.</span></li>
     </ul>
-
-    <div class="mt-6 pt-6 border-t border-slate-100">
-      <p class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-3">Demo accounts — one click</p>
-      <div class="grid sm:grid-cols-3 gap-3">
-        {% for demo in DEMO_LOGINS %}
-        <a href="{% url 'accounts:login' %}?demo={{ demo.username }}"
-           class="flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold
-                  {% if demo.accent == 'violet' %}bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100{% elif demo.accent == 'emerald' %}bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100{% else %}bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100{% endif %}">
-          <span>{{ demo.role }}</span>
-          <span class="text-xs font-mono text-slate-600">{{ demo.username }}</span>
-        </a>
-        {% endfor %}
-      </div>
-    </div>
   </div>
 </section>
 

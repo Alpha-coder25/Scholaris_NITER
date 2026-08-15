@@ -18,6 +18,5 @@ def site_globals(request):
         "SITE_NAME": "Scholaris",
         "user_role": role,
         "role_accent": role_accent,
-        "DEMO_LOGINS": settings.DEMO_LOGINS,
         "RATING_MIN_RESPONSES": settings.RATING_MIN_RESPONSES,
     }

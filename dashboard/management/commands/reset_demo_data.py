@@ -27,11 +27,10 @@ class Command(BaseCommand):
             )
             if answer.strip().lower() != "yes":
                 self.stdout.write(self.style.WARNING("Aborted — no changes made."))
-                return
-
-        call_command("flush", interactive=False, verbosity=1)
+                return        call_command("flush", interactive=False, verbosity=1)
         call_command("seed_demo_data", verbosity=1)
         self.stdout.write(self.style.SUCCESS(
             "Demo database reset to pristine seed state. "
-            "Logins: admin/admin123 | t.hasan/demo123 | s.rahman/demo123"
+            "Seeded account passwords were printed by seed_demo_data above — "
+            "there are no published demo credentials."
         ))

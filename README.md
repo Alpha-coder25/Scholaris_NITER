@@ -72,15 +72,18 @@ python manage.py runserver
 
 Open http://localhost:8000 — the root serves a **public landing page** (what Scholaris is, how it works, per-role login guide) with **Log in** and **Sign up as a student** buttons. Logged-in users land directly on their role dashboard; logging out returns to the landing page.
 
-### Demo logins (also one-click buttons on the landing page & login page)
+### Accounts
 
-| Role | Username | Password |
-|---|---|---|
-| Admin | `admin` | `admin123` |
-| Teacher | `t.hasan` | `demo123` |
-| Student | `s.rahman` | `demo123` |
+There are **no published demo credentials.** `seed_demo_data` gives every
+seeded user a strong random password and prints the full list once at seed
+time — save it if you need to log in as a seeded user. For deterministic
+setups (CI, a shared demo DB), set `SEED_PASSWORD` in the environment and all
+seeded users share that password.
 
-Students can also **sign up themselves** (`/accounts/signup/`) — they get a `student` account, are logged in automatically, and can then enroll in courses. Teacher/admin accounts are created by the institution.
+Students can **sign up themselves** (`/accounts/signup/`) — they get a `student`
+account, are logged in automatically, and can then enroll in courses. Teacher
+and admin accounts are created by the institution (the admin can also create
+them, or a superuser can be made via `createsuperuser`).
 
 ## Demo script (60–90 seconds)
 
@@ -150,7 +153,7 @@ Deploying / re-deploying:
   ```
 
 **Notes**
-- One DB, everywhere: local dev and the Vercel deployment share the Neon database, so seeded data and demo accounts work identically on the live site.
+- One DB, everywhere: local dev and the Vercel deployment share the Neon database, so seeded data works identically on the live site. There are no published demo accounts — seeded users get random passwords printed once at seed time (or `SEED_PASSWORD` for deterministic setups).
 - Uploaded material *files* are ephemeral on serverless disk; extracted text is stored in the DB so AI generation always works. For a persistent file store, add S3-compatible storage later.
 - Free-tier Neon cold-starts after idle — hit the app a few minutes before a live demo.
 

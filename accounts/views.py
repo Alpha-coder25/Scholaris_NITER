@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.forms import AuthenticationForm
@@ -20,20 +19,7 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect(_role_home(request.user))
 
-    # One-click demo login: /accounts/login/?demo=<username> fills the form
-    # with the seeded demo credentials and submits it.
-    demo_username = request.GET.get("demo")
-    is_demo = False
-    if demo_username:
-        for demo in settings.DEMO_LOGINS:
-            if demo["username"] == demo_username:
-                request.POST = request.POST.copy()
-                request.POST["username"] = demo["username"]
-                request.POST["password"] = demo["password"]
-                is_demo = True
-                break
-
-    if request.method == "POST" or is_demo:
+    if request.method == "POST":
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()

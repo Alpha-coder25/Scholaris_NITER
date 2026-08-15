@@ -1,10 +1,15 @@
 """Seed realistic demo data for the Scholaris hackathon demo.
 
 Idempotent — safe to run repeatedly (get_or_create everywhere).
-Logins:  admin / admin123 · t.hasan / demo123 · s.rahman / demo123
+
+There are NO published demo credentials. Each seeded user gets a strong random
+password (printed once to the console at seed time), or — for deterministic
+setups like CI — the value of the SEED_PASSWORD environment variable.
 """
+import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
@@ -66,6 +71,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Seeding Scholaris demo data…")
 
+        def password_for(user):
+            """Deterministic via SEED_PASSWORD when set; otherwise random."""
+            if settings.SEED_PASSWORD:
+                return settings.SEED_PASSWORD
+            return secrets.token_urlsafe(16)
+
+        generated = {}  # username -> password, printed once at the end
+
         # ------------------------------------------------------------- departments
         depts = {
             "CSE": Department.objects.get_or_create(
@@ -114,12 +127,11 @@ class Command(BaseCommand):
                 "email": "admin@niter.edu.bd",
             },
         )
-        # Demo accounts intentionally use simple, well-known passwords (matching
-        # the one-click demo login feature); real deployments override via env.
-        # nosemgrep
-        admin.set_password("admin123")
+        admin_pw = password_for(admin)
+        admin.set_password(admin_pw)
         admin.is_staff = True
         admin.save()
+        generated["admin"] = admin_pw
 
         def make_user(username, first, last, role, dept, emp_id=None, stu_id=None):
             user, created = User.objects.get_or_create(
@@ -134,11 +146,10 @@ class Command(BaseCommand):
                     "email": f"{username}@niter.edu.bd",
                 },
             )
-            # Demo accounts intentionally use simple, well-known passwords (matching
-            # the one-click demo login feature); real deployments override via env.
-            # nosemgrep
-            user.set_password("demo123")
+            pw = password_for(user)
+            user.set_password(pw)
             user.save()
+            generated[user.username] = pw
             return user
 
         t_hasan = make_user("t.hasan", "Mahmudul", "Hasan", "teacher", depts["CSE"], "T-101")
@@ -335,6 +346,15 @@ class Command(BaseCommand):
                 defaults={"stars": stars, "comment": comment},
             )
 
-        self.stdout.write(self.style.SUCCESS(
-            "Done. Demo logins: admin/admin123 | t.hasan/demo123 | s.rahman/demo123"
-        ))
+        if settings.SEED_PASSWORD:
+            self.stdout.write(self.style.SUCCESS(
+                "Done. All seeded users use the SEED_PASSWORD you provided."
+            ))
+        else:
+            self.stdout.write(self.style.SUCCESS("Done. Seeded account passwords:"))
+            for username, pw in sorted(generated.items()):
+                self.stdout.write(f"  {username:<16} {pw}")
+            self.stdout.write(self.style.WARNING(
+                "These passwords were generated once and are not stored anywhere — "
+                "save them now if you need to log in as a seeded user."
+            ))

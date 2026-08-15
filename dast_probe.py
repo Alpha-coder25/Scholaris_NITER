@@ -87,14 +87,29 @@ for path in ["/", "/accounts/login/"]:
     check(f"method: POST {path} not 500", r.status_code < 500, f"status={r.status_code}")
 
 # ---------------------------------------------------------------------------
-# 6. Cookie flags after a real login (demo account)
+# 6. Cookie flags after a real session (public student sign-up)
 # ---------------------------------------------------------------------------
+import uuid
+
 s = requests.Session()
-r = s.get(BASE + "/accounts/login/?demo=admin", timeout=TIMEOUT, allow_redirects=True)
+username = "probe_" + uuid.uuid4().hex[:10]
+get_page = s.get(BASE + "/accounts/signup/", timeout=TIMEOUT)
+import html as _html
+
+_csrf_match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', get_page.text)
+_csrf = _html.unescape(_csrf_match.group(1)) if _csrf_match else ""
+r = s.post(
+    BASE + "/accounts/signup/",
+    data={"username": username, "first_name": "DAST", "last_name": "Probe",
+          "password": "ProbePass-2026!", "csrfmiddlewaretoken": _csrf},
+    headers={"Referer": BASE + "/accounts/signup/"},
+    timeout=TIMEOUT,
+    allow_redirects=True,
+)
 session_cookie = next(
     (c for c in s.cookies if c.name == "sessionid"), None
 )
-check("session cookie set after login", session_cookie is not None, "(none)")
+check("session cookie set after sign-up", session_cookie is not None, "(none)")
 if session_cookie is not None:
     check("session cookie HttpOnly", session_cookie.has_nonstandard_attr("HttpOnly")
           or "httponly" in str(session_cookie._rest).lower())
