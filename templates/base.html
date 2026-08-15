@@ -35,6 +35,7 @@
               <a href="{% url 'dashboard:admin_dashboard' %}" class="hover:underline">Dashboard</a>
               <a href="{% url 'accounts:admin_users' %}" class="hover:underline">People</a>
               <a href="{% url 'accounts:admin_students' %}" class="hover:underline">Students</a>
+              <a href="{% url 'academics:syllabus' %}" class="hover:underline">Syllabus</a>
               <a href="{% url 'academics:course_offerings' %}" class="hover:underline">Assign Courses</a>
               <a href="{% url 'dashboard:admin_analytics' %}" class="hover:underline">Analytics</a>
             {% elif user_role == "teacher" %}

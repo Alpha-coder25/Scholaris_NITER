@@ -28,19 +28,29 @@ class Semester(models.Model):
 
 
 class Course(models.Model):
+    """A course in a department's syllabus for a given semester."""
+
     department = models.ForeignKey(
         Department, on_delete=models.CASCADE, related_name="courses"
+    )
+    semester = models.ForeignKey(
+        Semester,
+        on_delete=models.CASCADE,
+        related_name="courses",
+        null=True,
+        blank=True,
     )
     code = models.CharField(max_length=20)
     title = models.CharField(max_length=200)
     credit_hours = models.PositiveSmallIntegerField(default=3)
 
     class Meta:
-        ordering = ["code"]
-        unique_together = ("department", "code")
+        ordering = ["semester", "code"]
+        unique_together = ("department", "semester", "code")
 
     def __str__(self):
-        return f"{self.code} — {self.title}"
+        sem = f" · {self.semester.name}" if self.semester else ""
+        return f"{self.code} — {self.title}{sem}"
 
 
 class CourseOffering(models.Model):
@@ -50,7 +60,7 @@ class CourseOffering(models.Model):
     """
 
     course = models.ForeignKey(
-        Course, on_delete=models.CASCADE, related_name="offerings"
+        Course, on_delete=models.PROTECT, related_name="offerings"
     )
     semester = models.ForeignKey(
         Semester, on_delete=models.CASCADE, related_name="offerings"

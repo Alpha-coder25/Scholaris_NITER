@@ -190,6 +190,7 @@ class Command(BaseCommand):
         def make_course(dept, code, title, credits):
             course, _ = Course.objects.get_or_create(
                 department=dept,
+                semester=semester,
                 code=code,
                 defaults={"title": title, "credit_hours": credits},
             )

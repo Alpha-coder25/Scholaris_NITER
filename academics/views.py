@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
@@ -8,6 +9,120 @@ from accounts.decorators import role_required
 from .models import Course, CourseOffering, Department, Enrollment, Semester
 
 User = get_user_model()
+
+
+@role_required("admin")
+def syllabus(request):
+    """Admin: manage a department's semester syllabus — add / update / delete
+    the courses listed for that department & semester."""
+    departments = Department.objects.all()
+    semesters = Semester.objects.all()
+
+    dept_id = request.GET.get("department") or request.POST.get("department")
+    sem_id = request.GET.get("semester") or request.POST.get("semester")
+    department = Department.objects.filter(pk=dept_id).first()
+    semester = Semester.objects.filter(pk=sem_id).first()
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            code = request.POST.get("code", "").strip().upper()
+            title = request.POST.get("title", "").strip()
+            credits = request.POST.get("credit_hours", "")
+            if not department or not semester:
+                messages.error(request, "Choose a department and semester first.")
+            elif not code:
+                messages.error(request, "Course code is required.")
+            elif not title:
+                messages.error(request, "Course title is required.")
+            elif len(code) > 20:
+                messages.error(request, "Course code must be at most 20 characters.")
+            elif len(title) > 200:
+                messages.error(request, "Course title must be at most 200 characters.")
+            else:
+                try:
+                    credits = int(credits)
+                    if credits <= 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    messages.error(request, "Credit hours must be a positive number.")
+                else:
+                    if Course.objects.filter(
+                        department=department, semester=semester, code=code
+                    ).exists():
+                        messages.error(request, f"{code} already exists in {semester.name}.")
+                    else:
+                        Course.objects.create(
+                            department=department, semester=semester,
+                            code=code, title=title, credit_hours=credits,
+                        )
+                        messages.success(request, f"Added {code} — {title} to the syllabus.")
+
+        elif action == "delete":
+            course = get_object_or_404(Course, pk=request.POST.get("course_id"))
+            try:
+                with transaction.atomic():
+                    course.delete()
+                messages.success(request, f"Deleted {course.code} from the syllabus.")
+            except ProtectedError:
+                messages.error(
+                    request,
+                    f"Cannot delete {course.code} — it is assigned to a course offering "
+                    "(or has exams/materials). Remove those assignments first.",
+                )
+
+        elif action == "update":
+            course = get_object_or_404(Course, pk=request.POST.get("course_id"))
+            code = request.POST.get("code", "").strip().upper()
+            title = request.POST.get("title", "").strip()
+            credits = request.POST.get("credit_hours", "")
+            if not code:
+                messages.error(request, "Course code is required.")
+            elif not title:
+                messages.error(request, "Course title is required.")
+            else:
+                try:
+                    credits = int(credits)
+                    if credits <= 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    messages.error(request, "Credit hours must be a positive number.")
+                else:
+                    dup = Course.objects.filter(
+                        department=course.department, semester=course.semester, code=code
+                    ).exclude(pk=course.pk)
+                    if dup.exists():
+                        messages.error(request, f"{code} already exists in this semester's syllabus.")
+                    else:
+                        course.code = code
+                        course.title = title
+                        course.credit_hours = credits
+                        course.save()
+                        messages.success(request, f"Updated {course.code}.")
+
+        return redirect(
+            f"/admin/syllabus/?department={dept_id or ''}&semester={sem_id or ''}"
+        )
+
+    courses = Course.objects.none()
+    if department and semester:
+        courses = (
+            Course.objects.filter(department=department, semester=semester)
+            .order_by("code")
+        )
+
+    return render(
+        request,
+        "admin/syllabus.html",
+        {
+            "departments": departments,
+            "semesters": semesters,
+            "department": department,
+            "semester": semester,
+            "courses": courses,
+        },
+    )
 
 
 @role_required("admin")

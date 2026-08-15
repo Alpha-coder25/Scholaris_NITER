@@ -123,6 +123,30 @@ check("logged-in / redirects to role dashboard", r.status_code == 302 and "/stud
 r = c_admin.get("/admin/course-offerings/")
 check("admin assignment page 200", r.status_code == 200)
 
+# ------------------------------------------------- 2c. admin syllabus management
+sem = offering.semester
+r = c_admin.get(f"/admin/syllabus/?department={offering.course.department_id}&semester={sem.pk}")
+check("admin syllabus page 200", r.status_code == 200)
+check("syllabus lists seeded course", b"CSE-2101" in r.content or offering.course.code.encode() in r.content)
+# Admin adds a course to the syllabus, then deletes it (re-runnable).
+try_syllabus_code = "CSE-9999"
+from academics.models import Course as AcademicsCourse  # noqa: E402
+AcademicsCourse.objects.filter(code=try_syllabus_code, semester=sem).delete()
+r = c_admin.post(
+    "/admin/syllabus/",
+    {"action": "add", "department": offering.course.department_id, "semester": sem.pk,
+     "code": try_syllabus_code, "title": "Syllabus Check Course", "credit_hours": "1"},
+)
+added_course = AcademicsCourse.objects.filter(code=try_syllabus_code, semester=sem).first()
+check("admin adds course to syllabus", added_course is not None and added_course.title == "Syllabus Check Course")
+if added_course:
+    r = c_admin.post(
+        "/admin/syllabus/",
+        {"action": "delete", "course_id": added_course.pk,
+         "department": offering.course.department_id, "semester": sem.pk},
+    )
+    check("admin deletes course from syllabus", not AcademicsCourse.objects.filter(pk=added_course.pk).exists())
+
 # ------------------------------------------------ 2b. admin people management
 r = c_admin.get("/accounts/admin/users/")
 check("admin people directory 200", r.status_code == 200)
