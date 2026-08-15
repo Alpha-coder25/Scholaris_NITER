@@ -67,6 +67,15 @@ check("teacher blocked from admin pages", r.status_code == 302)
 r = c_student.get("/teacher/dashboard/")
 check("student blocked from teacher pages", r.status_code == 302)
 
+# Landing page: anonymous / serves the landing page, logged-in / redirects.
+anon = Client()
+r = anon.get("/")
+check("anonymous / serves landing page", r.status_code == 200 and b"How it works" in r.content)
+check("landing page has login CTA", b"Log in" in r.content)
+check("landing page has sign-up CTA", b"Sign up as a student" in r.content)
+r = c_student.get("/")
+check("logged-in / redirects to role dashboard", r.status_code == 302 and "/student/dashboard/" in r.get("Location"))
+
 # ------------------------------------------------------------ 2. admin assign
 r = c_admin.get("/admin/course-offerings/")
 check("admin assignment page 200", r.status_code == 200)

@@ -10,9 +10,9 @@ from ratings.views import aggregate_for_offering
 
 
 def home(request):
-    """Route authenticated users to their role dashboard."""
+    """Landing page for visitors; role dashboard for logged-in users."""
     if not request.user.is_authenticated:
-        return redirect("accounts:login")
+        return render(request, "dashboard/landing.html")
     if request.user.role == "admin":
         return redirect("dashboard:admin_dashboard")
     if request.user.role == "teacher":

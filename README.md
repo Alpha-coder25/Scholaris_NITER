@@ -70,15 +70,17 @@ npm run build:css                  # or: npm run watch:css
 python manage.py runserver
 ```
 
-Open http://localhost:8000
+Open http://localhost:8000 — the root serves a **public landing page** (what Scholaris is, how it works, per-role login guide) with **Log in** and **Sign up as a student** buttons. Logged-in users land directly on their role dashboard; logging out returns to the landing page.
 
-### Demo logins (also one-click buttons on the login page)
+### Demo logins (also one-click buttons on the landing page & login page)
 
 | Role | Username | Password |
 |---|---|---|
 | Admin | `admin` | `admin123` |
 | Teacher | `t.hasan` | `demo123` |
 | Student | `s.rahman` | `demo123` |
+
+Students can also **sign up themselves** (`/accounts/signup/`) — they get a `student` account, are logged in automatically, and can then enroll in courses. Teacher/admin accounts are created by the institution.
 
 ## Demo script (60–90 seconds)
 
