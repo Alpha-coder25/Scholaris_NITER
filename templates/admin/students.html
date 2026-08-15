@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Students by Cohort{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-extrabold text-slate-800">Students by Cohort</h1>
+    <p class="text-slate-500 text-sm mt-1">Grouped by admission year → department → section.</p>
+  </div>
+  <a href="{% url 'accounts:admin_users' %}" class="px-4 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm">← Full directory</a>
+</div>
+
+{% for year, depts in cohorts.items %}
+<section class="mb-8">
+  <h2 class="text-lg font-extrabold text-slate-800 mb-3 flex items-center gap-2">
+    <span class="px-2.5 py-1 rounded-lg bg-violet-100 text-violet-700 text-sm">Batch {{ year }}</span>
+  </h2>
+
+  {% for dept, sections in depts.items %}
+  <div class="mb-5">
+    <h3 class="font-bold text-slate-700 mb-2 flex items-center gap-2">
+      {{ dept }}
+      <span class="text-xs text-slate-400 font-normal">({{ sections|length }} section{% if sections|length != 1 %}s{% endif %})</span>
+    </h3>
+    <div class="space-y-3">
+      {% for sec, students in sections.items %}
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <span class="font-bold text-sm text-slate-700">Section {{ sec }}</span>
+          <span class="text-xs text-slate-500">{{ students|length }} student{{ students|length|pluralize }}</span>
+        </div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-slate-100">
+            {% for s in students %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-5 py-2.5 font-medium">{{ s.get_full_name|default:s.username }}</td>
+              <td class="px-5 py-2.5 font-mono text-xs text-slate-500">{{ s.student_id_no }}</td>
+              <td class="px-5 py-2.5 text-right">
+                <a href="{% url 'accounts:admin_user_edit' s.pk %}" class="text-violet-700 font-semibold hover:underline text-xs">Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% empty %}
+      <p class="text-sm text-slate-500">No students in this section.</p>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% empty %}
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-slate-500">
+  No students yet — they can <a href="{% url 'accounts:signup' %}" class="text-violet-700 font-semibold hover:underline">sign up</a> themselves, or you can
+  <a href="{% url 'accounts:admin_user_add' %}" class="text-violet-700 font-semibold hover:underline">add them here</a>.
+</div>
+{% endfor %}
+{% endblock %}

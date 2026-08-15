@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit {{ editing.get_full_name|default:editing.username }}{% else %}Add teacher/student{% endif %}{% endblock %}
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-extrabold text-slate-800">
+    {% if editing %}Edit — {{ editing.get_full_name|default:editing.username }}{% else %}Add a teacher or student{% endif %}
+  </h1>
+  <p class="text-slate-500 text-sm mt-1">
+    {% if editing %}Update this account's information (role cannot be changed here).{% else %}Fill in the details for the new account.{% endif %}
+  </p>
+</div>
+
+<div class="max-w-2xl">
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="mb-4 px-4 py-2.5 rounded-lg text-sm font-medium {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-sky-50 text-sky-800 border border-sky-200{% endif %}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-2">Role</label>
+        {% if editing %}
+          <span class="px-3 py-1.5 rounded-lg text-sm font-bold
+            {% if editing.role == 'teacher' %}bg-emerald-50 text-emerald-700{% else %}bg-sky-50 text-sky-700{% endif %}">
+            {{ editing.get_role_display }}
+          </span>
+          <input type="hidden" name="role" value="{{ editing.role }}">
+        {% else %}
+          <div class="grid grid-cols-2 gap-3 max-w-md">
+            <button type="button" data-role="teacher"
+                    class="role-btn text-center py-3 rounded-xl border-2 border-slate-200 hover:border-emerald-400 transition">
+              <div class="font-bold text-slate-800">👨‍🏫 Teacher</div>
+            </button>
+            <button type="button" data-role="student"
+                    class="role-btn text-center py-3 rounded-xl border-2 border-slate-200 hover:border-sky-400 transition">
+              <div class="font-bold text-slate-800">🎓 Student</div>
+            </button>
+          </div>
+          <input type="hidden" name="role" id="id_role" value="student">
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">First name</label>
+          <input type="text" name="first_name" value="{{ editing.first_name }}" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1">Last name</label>
+          <input type="text" name="last_name" value="{{ editing.last_name }}" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+        </div>
+      </div>
+
+      {% if not editing %}
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Username *</label>
+        <input type="text" name="username" required class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+      </div>
+      {% endif %}
+
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Email</label>
+        <input type="email" name="email" value="{{ editing.email }}" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Department</label>
+        <select name="department" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+          <option value="">Select department…</option>
+          {% for d in departments %}
+          <option value="{{ d.pk }}" {% if editing.department_id == d.pk %}selected{% endif %}>{{ d.name }} ({{ d.short_code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Student fields -->
+      <div id="student-fields" class="space-y-4 {% if not editing or editing.role == 'student' %}block{% else %}hidden{% endif %}">
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Student ID</label>
+            <input type="text" name="student_id_no" value="{{ editing.student_id_no }}" placeholder="TE 2405038" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Batch (year)</label>
+            <input type="text" name="batch" value="{{ editing.batch }}" placeholder="2024" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-600 mb-1">Section</label>
+            <input type="text" name="section" value="{{ editing.section }}" placeholder="A" maxlength="1" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Teacher fields -->
+      <div id="teacher-fields" class="{% if editing.role == 'teacher' %}block{% else %}hidden{% endif %}">
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Employee ID</label>
+        <input type="text" name="employee_id" value="{{ editing.employee_id }}" placeholder="e.g. T-101" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">{% if editing %}New password (leave blank to keep){% else %}Password *{% endif %}</label>
+        <input type="password" name="password" {% if not editing %}required{% endif %} placeholder="At least 6 characters" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+      </div>
+
+      <div class="flex gap-3 pt-1">
+        <button class="px-5 py-2.5 rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-bold text-sm">Save</button>
+        <a href="{% url 'accounts:admin_users' %}" class="px-5 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const roleInput = document.getElementById('id_role');
+  const studentFields = document.getElementById('student-fields');
+  const teacherFields = document.getElementById('teacher-fields');
+  const roleBtns = document.querySelectorAll('.role-btn');
+  if (roleBtns.length) {
+    function applyRole(role) {
+      roleInput.value = role;
+      roleBtns.forEach(b => {
+        const active = b.dataset.role === role;
+        b.classList.toggle('border-sky-500', active && role === 'student');
+        b.classList.toggle('bg-sky-50', active && role === 'student');
+        b.classList.toggle('border-emerald-500', active && role === 'teacher');
+        b.classList.toggle('bg-emerald-50', active && role === 'teacher');
+        b.classList.toggle('border-slate-200', !active);
+      });
+      studentFields.classList.toggle('hidden', role !== 'student');
+      teacherFields.classList.toggle('hidden', role !== 'teacher');
+    }
+    roleBtns.forEach(b => b.addEventListener('click', () => applyRole(b.dataset.role)));
+    applyRole(roleInput.value || 'student');
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}People Directory{% endblock %}
+{% block content %}
+<div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-extrabold text-slate-800">Teachers &amp; Students</h1>
+    <p class="text-slate-500 text-sm mt-1">Add, view and update everyone at the institution.</p>
+  </div>
+  <div class="flex gap-3">
+    <a href="{% url 'accounts:admin_user_add' %}" class="px-4 py-2.5 rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-bold text-sm">+ Add teacher/student</a>
+    <a href="{% url 'accounts:admin_students' %}" class="px-4 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm">Students by cohort</a>
+  </div>
+</div>
+
+<form method="get" class="mb-6 flex flex-wrap gap-3">
+  <select name="role" class="px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+    <option value="">All roles</option>
+    <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>Teachers</option>
+    <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Students</option>
+  </select>
+  <select name="department" class="px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+    <option value="">All departments</option>
+    {% for d in departments %}
+    <option value="{{ d.pk }}" {% if dept_filter == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+    {% endfor %}
+  </select>
+  <button class="px-4 py-2.5 rounded-lg bg-slate-800 text-white font-semibold text-sm">Filter</button>
+</form>
+
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-6 py-3 font-semibold">Name</th>
+        <th class="text-left px-6 py-3 font-semibold">Role</th>
+        <th class="text-left px-6 py-3 font-semibold">ID</th>
+        <th class="text-left px-6 py-3 font-semibold">Department</th>
+        <th class="text-left px-6 py-3 font-semibold">Batch / Section</th>
+        <th class="text-left px-6 py-3 font-semibold">Contact</th>
+        <th class="text-right px-6 py-3 font-semibold">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for u in users %}
+      <tr class="hover:bg-slate-50">
+        <td class="px-6 py-3 font-medium">{{ u.get_full_name|default:u.username }}</td>
+        <td class="px-6 py-3">
+          {% if u.role == 'teacher' %}<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">Teacher</span>
+          {% else %}<span class="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 text-xs font-bold">Student</span>{% endif %}
+        </td>
+        <td class="px-6 py-3 font-mono text-xs text-slate-600">{{ u.display_id }}</td>
+        <td class="px-6 py-3 text-slate-600">{{ u.department.name|default:"—" }}</td>
+        <td class="px-6 py-3 text-slate-600">
+          {% if u.role == 'student' %}{{ u.batch|default:"—" }} / {{ u.section|default:"—" }}{% else %}—{% endif %}
+        </td>
+        <td class="px-6 py-3 text-slate-500">{{ u.email|default:"—" }}</td>
+        <td class="px-6 py-3 text-right">
+          <a href="{% url 'accounts:admin_user_edit' u.pk %}" class="text-violet-700 font-semibold hover:underline">Edit</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="px-6 py-10 text-center text-slate-500">No {{ role_filter }} accounts yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

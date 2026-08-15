@@ -84,7 +84,7 @@
     <div class="flex items-center gap-2 mb-2">
       <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">{{ q.get_type_display }}</span>
       <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-bold">{{ q.get_source_display }}</span>
-      {% if q.source == "ai_generated" %}<span class="text-xs text-slate-500">approved by {{ q.approved_by.get_full_name|default:q.approved_by.username }}</span>{% endif %}
+      {% if q.source == "ai_generated" and q.approved_by %}<span class="text-xs text-slate-500">approved by {{ q.approved_by.get_full_name|default:q.approved_by.username }}</span>{% endif %}
     </div>
     <p class="font-medium text-slate-800">{{ q.text }}</p>
     {% if q.is_mcq %}

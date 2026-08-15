@@ -80,23 +80,25 @@ class Command(BaseCommand):
         generated = {}  # username -> password, printed once at the end
 
         # ------------------------------------------------------------- departments
-        depts = {
-            "CSE": Department.objects.get_or_create(
-                name="Computer Science & Engineering", defaults={"short_code": "CSE"}
-            )[0],
-            "EEE": Department.objects.get_or_create(
-                name="Electrical & Electronic Engineering", defaults={"short_code": "EEE"}
-            )[0],
-            "TE": Department.objects.get_or_create(
-                name="Textile Engineering", defaults={"short_code": "TE"}
-            )[0],
-            "IPE": Department.objects.get_or_create(
-                name="Industrial & Production Engineering", defaults={"short_code": "IPE"}
-            )[0],
-            "FDAE": Department.objects.get_or_create(
-                name="Fashion Design & Apparel Engineering", defaults={"short_code": "FDAE"}
-            )[0],
+        # Short codes double as the student-ID prefixes: CS=CSE · EE=EEE ·
+        # TE=Textile · FD=Fashion Design & Apparel · IP=Industrial & Production.
+        dept_specs = {
+            "CSE": ("Computer Science & Engineering", "CS"),
+            "EEE": ("Electrical & Electronic Engineering", "EE"),
+            "TE": ("Textile Engineering", "TE"),
+            "IPE": ("Industrial & Production Engineering", "IP"),
+            "FDAE": ("Fashion Design & Apparel Engineering", "FD"),
         }
+        depts = {}
+        for key, (name, code) in dept_specs.items():
+            dept, _ = Department.objects.get_or_create(
+                name=name, defaults={"short_code": code}
+            )
+            # Normalise any legacy code (CSE/EEE/IPE/FDAE) to the new prefix.
+            if dept.short_code != code:
+                dept.short_code = code
+                dept.save()
+            depts[key] = dept
 
         # -------------------------------------------------------------- semester
         semester, _ = Semester.objects.get_or_create(
@@ -133,7 +135,8 @@ class Command(BaseCommand):
         admin.save()
         generated["admin"] = admin_pw
 
-        def make_user(username, first, last, role, dept, emp_id=None, stu_id=None):
+        def make_user(username, first, last, role, dept, emp_id=None, stu_id=None,
+                      batch="", section=""):
             user, created = User.objects.get_or_create(
                 username=username,
                 defaults={
@@ -143,9 +146,17 @@ class Command(BaseCommand):
                     "department": dept,
                     "employee_id": emp_id or "",
                     "student_id_no": stu_id or "",
+                    "batch": batch,
+                    "section": section,
                     "email": f"{username}@niter.edu.bd",
                 },
             )
+            # Keep fields in sync if the seed spec changed (e.g. after reseed).
+            user.department = dept
+            user.employee_id = emp_id or user.employee_id
+            user.student_id_no = stu_id or user.student_id_no
+            user.batch = batch or user.batch
+            user.section = section or user.section
             pw = password_for(user)
             user.set_password(pw)
             user.save()
@@ -157,14 +168,22 @@ class Command(BaseCommand):
         t_islam = make_user("t.islam", "Rafiqul", "Islam", "teacher", depts["TE"], "T-103")
 
         students = {
-            "s.rahman": make_user("s.rahman", "Sabrina", "Rahman", "student", depts["CSE"], stu_id="2020-CSE-001"),
-            "s.ahmed": make_user("s.ahmed", "Tanvir", "Ahmed", "student", depts["CSE"], stu_id="2021-CSE-014"),
-            "s.chowdhury": make_user("s.chowdhury", "Nusrat", "Chowdhury", "student", depts["CSE"], stu_id="2021-CSE-022"),
-            "s.hossain": make_user("s.hossain", "Arif", "Hossain", "student", depts["CSE"], stu_id="2022-CSE-007"),
-            "s.uddin": make_user("s.uddin", "Rakib", "Uddin", "student", depts["CSE"], stu_id="2022-CSE-031"),
-            "s.kabir": make_user("s.kabir", "Farzana", "Kabir", "student", depts["EEE"], stu_id="2021-EEE-009"),
-            "s.mia": make_user("s.mia", "Jahid", "Mia", "student", depts["EEE"], stu_id="2022-EEE-018"),
-            "s.sultana": make_user("s.sultana", "Mehjabin", "Sultana", "student", depts["TE"], stu_id="2022-TE-011"),
+            "s.rahman": make_user("s.rahman", "Sabrina", "Rahman", "student", depts["CSE"],
+                                  stu_id="CS 2305001", batch="2023", section="A"),
+            "s.ahmed": make_user("s.ahmed", "Tanvir", "Ahmed", "student", depts["CSE"],
+                                  stu_id="CS 2405002", batch="2024", section="A"),
+            "s.chowdhury": make_user("s.chowdhury", "Nusrat", "Chowdhury", "student", depts["CSE"],
+                                      stu_id="CS 2405003", batch="2024", section="B"),
+            "s.hossain": make_user("s.hossain", "Arif", "Hossain", "student", depts["CSE"],
+                                    stu_id="CS 2405004", batch="2024", section="B"),
+            "s.uddin": make_user("s.uddin", "Rakib", "Uddin", "student", depts["CSE"],
+                                  stu_id="CS 2505005", batch="2025", section="A"),
+            "s.kabir": make_user("s.kabir", "Farzana", "Kabir", "student", depts["EEE"],
+                                  stu_id="EE 2406001", batch="2024", section="A"),
+            "s.mia": make_user("s.mia", "Jahid", "Mia", "student", depts["EEE"],
+                                stu_id="EE 2506002", batch="2025", section="A"),
+            "s.sultana": make_user("s.sultana", "Mehjabin", "Sultana", "student", depts["TE"],
+                                    stu_id="TE 2405038", batch="2024", section="A"),
         }
 
         # --------------------------------------------------------------- courses

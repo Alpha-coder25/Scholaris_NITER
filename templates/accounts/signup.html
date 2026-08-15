@@ -11,11 +11,11 @@
   <style>body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }</style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-violet-700 via-indigo-700 to-sky-700 flex items-center justify-center p-6">
-  <div class="w-full max-w-md">
+  <div class="w-full max-w-lg">
     <div class="text-center mb-6 text-white">
       <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 text-3xl mb-3 shadow-lg">🎓</div>
-      <h1 class="text-2xl font-extrabold tracking-tight">Create a student account</h1>
-      <p class="mt-1 text-white/75 text-sm">Join Scholaris — enroll in courses and take exams</p>
+      <h1 class="text-2xl font-extrabold tracking-tight">Create your Scholaris account</h1>
+      <p class="mt-1 text-white/75 text-sm">First, tell us who you are — then we'll ask for the details</p>
     </div>
 
     <div class="bg-white rounded-2xl shadow-xl p-7">
@@ -25,43 +25,95 @@
         {% endfor %}
       {% endif %}
 
-      <form method="post" class="space-y-3.5">
+      <form method="post" class="space-y-4" id="signup-form">
         {% csrf_token %}
+
+        <!-- Step 1: choose your role -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-2">I am a… *</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" data-role="teacher"
+                    class="role-btn text-center py-3.5 rounded-xl border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition {% if role == 'teacher' %}border-emerald-500 bg-emerald-50{% endif %}">
+              <div class="text-2xl mb-1">👨‍🏫</div>
+              <div class="font-bold text-slate-800">Teacher</div>
+              <div class="text-xs text-slate-500">Faculty &amp; staff</div>
+            </button>
+            <button type="button" data-role="student"
+                    class="role-btn text-center py-3.5 rounded-xl border-2 border-slate-200 hover:border-sky-400 hover:bg-sky-50 transition {% if role == 'student' or not role %}border-sky-500 bg-sky-50{% endif %}">
+              <div class="text-2xl mb-1">🎓</div>
+              <div class="font-bold text-slate-800">Student</div>
+              <div class="text-xs text-slate-500">Enrolled at NITER</div>
+            </button>
+          </div>
+          <input type="hidden" name="role" id="id_role" value="{{ role|default:'student' }}">
+        </div>
+
+        <!-- Step 2: shared fields -->
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_first">First name</label>
-            <input type="text" name="first_name" id="id_first" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_first">First name *</label>
+            <input type="text" name="first_name" id="id_first" value="{{ values.first_name }}"
+                   class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
           </div>
           <div>
-            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_last">Last name</label>
-            <input type="text" name="last_name" id="id_last" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_last">Last name *</label>
+            <input type="text" name="last_name" id="id_last" value="{{ values.last_name }}"
+                   class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
           </div>
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_username">Username *</label>
-          <input type="text" name="username" id="id_username" required autofocus placeholder="e.g. s.karim"
+          <input type="text" name="username" id="id_username" required value="{{ values.username }}" placeholder="e.g. s.karim"
                  class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
         </div>
         <div>
           <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_email">Email</label>
-          <input type="email" name="email" id="id_email" placeholder="you@niter.edu.bd"
+          <input type="email" name="email" id="id_email" value="{{ values.email }}" placeholder="you@niter.edu.bd"
                  class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_dept">Department *</label>
-            <select name="department" id="id_dept" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
-              {% for d in departments %}
-              <option value="{{ d.pk }}">{{ d.name }}</option>
-              {% endfor %}
-            </select>
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_dept">Department *</label>
+          <select name="department" id="id_dept" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            <option value="">Select department…</option>
+            {% for d in departments %}
+            <option value="{{ d.pk }}" {% if values.department == d.pk|stringformat:"s" %}selected{% endif %}>
+              {{ d.name }} ({{ d.short_code }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Student-only fields -->
+        <div id="student-fields" class="space-y-3.5 {% if role != 'student' and role != 'teacher' %}block{% elif role != 'student' %}hidden{% endif %}">
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-1">
+              <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_stu">Student ID *</label>
+              <input type="text" name="student_id_no" id="id_stu" value="{{ values.student_id_no }}" placeholder="TE 2405038"
+                     class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_batch">Batch (year) *</label>
+              <input type="text" name="batch" id="id_batch" value="{{ values.batch }}" placeholder="2024" inputmode="numeric"
+                     class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_section">Section *</label>
+              <input type="text" name="section" id="id_section" value="{{ values.section }}" placeholder="A" maxlength="1"
+                     class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+            </div>
           </div>
+          <p class="text-xs text-slate-500">Student IDs use the department code + admission year + serial, e.g. <b>TE 2405038</b> (TE = Textile), <b>CS</b> = CSE, <b>EE</b> = EEE, <b>FD</b> = Fashion Design, <b>IP</b> = Industrial Production. The batch is filled from the ID if left blank.</p>
+        </div>
+
+        <!-- Teacher-only fields -->
+        <div id="teacher-fields" class="space-y-3.5 {% if role == 'teacher' %}block{% else %}hidden{% endif %}">
           <div>
-            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_stu">Student ID</label>
-            <input type="text" name="student_id_no" id="id_stu" placeholder="e.g. 2023-CSE-010"
-                   class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
+            <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_emp">Employee ID *</label>
+            <input type="text" name="employee_id" id="id_emp" value="{{ values.employee_id }}" placeholder="e.g. T-101"
+                   class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
           </div>
         </div>
+
         <div>
           <label class="block text-sm font-semibold text-slate-600 mb-1" for="id_password">Password *</label>
           <input type="password" name="password" id="id_password" required placeholder="At least 6 characters"
@@ -81,5 +133,32 @@
       </p>
     </div>
   </div>
+
+<script>
+  // Role toggle: show/hide role-specific fields
+  const roleInput = document.getElementById('id_role');
+  const studentFields = document.getElementById('student-fields');
+  const teacherFields = document.getElementById('teacher-fields');
+  const roleBtns = document.querySelectorAll('.role-btn');
+
+  function applyRole(role) {
+    roleInput.value = role;
+    roleBtns.forEach(b => {
+      const active = b.dataset.role === role;
+      b.classList.toggle('border-sky-500', active && role === 'student');
+      b.classList.toggle('bg-sky-50', active && role === 'student');
+      b.classList.toggle('border-emerald-500', active && role === 'teacher');
+      b.classList.toggle('bg-emerald-50', active && role === 'teacher');
+      b.classList.toggle('border-slate-200', !active);
+    });
+    studentFields.classList.toggle('hidden', role !== 'student');
+    teacherFields.classList.toggle('hidden', role !== 'teacher');
+    // only require the visible fields
+    studentFields.querySelectorAll('input').forEach(i => i.required = role === 'student');
+    teacherFields.querySelectorAll('input').forEach(i => i.required = role === 'teacher');
+  }
+  roleBtns.forEach(b => b.addEventListener('click', () => applyRole(b.dataset.role)));
+  applyRole(roleInput.value || 'student');
+</script>
 </body>
 </html>

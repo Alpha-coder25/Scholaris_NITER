@@ -33,6 +33,8 @@
           <div class="hidden md:flex items-center gap-4 text-sm font-medium">
             {% if user_role == "admin" %}
               <a href="{% url 'dashboard:admin_dashboard' %}" class="hover:underline">Dashboard</a>
+              <a href="{% url 'accounts:admin_users' %}" class="hover:underline">People</a>
+              <a href="{% url 'accounts:admin_students' %}" class="hover:underline">Students</a>
               <a href="{% url 'academics:course_offerings' %}" class="hover:underline">Assign Courses</a>
               <a href="{% url 'dashboard:admin_analytics' %}" class="hover:underline">Analytics</a>
             {% elif user_role == "teacher" %}

@@ -57,14 +57,34 @@ from accounts.models import User as ScholarisUser  # noqa: E402
 from academics.models import Enrollment  # noqa: E402
 
 _verify_pw = "VerifyPass-2026!"
-_verify_admin = ScholarisUser.objects.create_user(
-    username="verify_admin", password=_verify_pw, role="admin", is_staff=True)
-_verify_teacher = ScholarisUser.objects.create_user(
-    username="verify_teacher", password=_verify_pw, role="teacher")
-_verify_student = ScholarisUser.objects.create_user(
-    username="verify_student", password=_verify_pw, role="student")
-_verify_student2 = ScholarisUser.objects.create_user(
-    username="verify_student2", password=_verify_pw, role="student")
+_verify_names = ["verify_admin", "verify_teacher", "verify_student", "verify_student2"]
+
+# Clean up after any previous run *before* deleting leftover verify users: the
+# throwaway teacher owns the offering and a created exam (PROTECT FKs).
+Exam.objects.filter(title="Verify Exam - Timed", course_offering=offering).delete()
+# Hand the offering back to a real (non-verify) teacher if a previous run left
+# the throwaway teacher assigned.
+if offering.teacher.username in _verify_names:
+    _fallback_teacher = (
+        ScholarisUser.objects.filter(role="teacher")
+        .exclude(username__in=_verify_names)
+        .first()
+    )
+    offering.teacher = _fallback_teacher
+    offering.save()
+_original_teacher = offering.teacher
+ScholarisUser.objects.filter(username__in=_verify_names).delete()
+Enrollment.objects.filter(student__username__in=_verify_names).delete()
+
+
+def _make_verify_user(username, **kw):
+    return ScholarisUser.objects.create_user(username=username, password=_verify_pw, **kw)
+
+
+_verify_admin = _make_verify_user("verify_admin", role="admin", is_staff=True)
+_verify_teacher = _make_verify_user("verify_teacher", role="teacher")
+_verify_student = _make_verify_user("verify_student", role="student")
+_verify_student2 = _make_verify_user("verify_student2", role="student")
 # Assign the verify teacher to the seeded offering (teacher-scoped views
 # require the logged-in user to own the course) and enroll the throwaway
 # students so they can take its exam.
@@ -103,9 +123,50 @@ check("logged-in / redirects to role dashboard", r.status_code == 302 and "/stud
 r = c_admin.get("/admin/course-offerings/")
 check("admin assignment page 200", r.status_code == 200)
 
+# ------------------------------------------------ 2b. admin people management
+r = c_admin.get("/accounts/admin/users/")
+check("admin people directory 200", r.status_code == 200)
+r = c_admin.get("/accounts/admin/students/")
+check("admin students-by-cohort 200", r.status_code == 200)
+
+# Admin can add a student (then clean it up to stay re-runnable).
+add_username = "verify_added_student"
+if not ScholarisUser.objects.filter(username=add_username).exists():
+    r = c_admin.post(
+        "/accounts/admin/users/add/",
+        {"role": "student", "username": add_username, "password": _verify_pw,
+         "department": offering.course.department_id, "student_id_no": "CS 2605999",
+         "batch": "2026", "section": "A"},
+    )
+    added = ScholarisUser.objects.filter(username=add_username).first()
+    check("admin adds student", added is not None and added.role == "student" and added.batch == "2026")
+    if added:
+        added.delete()
+else:
+    check("admin adds student (skipped, exists)", True)
+
 # ------------------------------------------------------------ 3. enrollment
 r = c_student.get("/enroll/")
 check("student enroll page 200", r.status_code == 200)
+
+# ------------------------------------------------ 3b. role-first self signup
+# A brand-new student signs up through the public role-first form.
+signup_user = "verify_signup_user"
+if not ScholarisUser.objects.filter(username=signup_user).exists():
+    c_signup = Client()
+    r = c_signup.post(
+        "/accounts/signup/",
+        {"role": "student", "username": signup_user, "first_name": "Sig", "last_name": "Nup",
+         "email": "signup@x.com", "password": _verify_pw, "department": offering.course.department_id,
+         "student_id_no": "CS 2605998", "batch": "2026", "section": "A"},
+    )
+    created = ScholarisUser.objects.filter(username=signup_user).first()
+    check("role-first signup creates student", created is not None and created.role == "student")
+    check("signup auto-logs-in", c_signup.session.get("_auth_user_id") is not None)
+    if created:
+        created.delete()
+else:
+    check("role-first signup (skipped, exists)", True)
 
 # ---------------------------------------------------- 4. material upload (seed)
 materials_before = offering.materials.count()

@@ -31,6 +31,8 @@ class User(AbstractUser):
     )
     student_id_no = models.CharField("Student ID", max_length=20, blank=True)
     employee_id = models.CharField("Employee ID", max_length=20, blank=True)
+    batch = models.CharField("Batch (admission year)", max_length=10, blank=True)
+    section = models.CharField("Section", max_length=10, blank=True)
 
     class Meta:
         verbose_name = "User"
