@@ -237,14 +237,17 @@ rate_student = offering.enrollments.select_related("student").get(
 ).student
 c_rate = Client()
 c_rate.login(username=rate_student.username, password="demo123")
-rating_count_before = Rating.objects.filter(course_offering=offering).count()
+Rating.objects.filter(course_offering=offering, student=rate_student).delete()
 r = c_rate.post(
     f"/student/course/{offering.pk}/rate/",
     {"stars": "5", "comment": "Great lectures!"},
     follow=True,
 )
-rating_count_after = Rating.objects.filter(course_offering=offering).count()
-check("rating submitted (new row)", rating_count_after == rating_count_before + 1)
+check(
+    "rating submitted (new row)",
+    Rating.objects.filter(course_offering=offering, student=rate_student).exists()
+    and Rating.objects.get(course_offering=offering, student=rate_student).stars == 5,
+)
 r = c_admin.get("/admin/analytics/")
 check("admin analytics 200", r.status_code == 200)
 check("admin analytics show gated aggregates", b"Faculty ratings" in r.content and b"hidden until threshold" in r.content)

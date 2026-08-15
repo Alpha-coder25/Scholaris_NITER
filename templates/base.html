@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
   <style>body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }</style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col text-slate-800">
 
