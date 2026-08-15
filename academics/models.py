@@ -15,15 +15,34 @@ class Department(models.Model):
 
 
 class Semester(models.Model):
+    """A semester slot: every department runs Semester 1-8, two per year
+    (Semesters 1-2 = Year 1, 3-4 = Year 2, 5-6 = Year 3, 7-8 = Year 4)."""
+
     name = models.CharField(max_length=50, unique=True)
+    number = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Semester position 1-8"
+    )
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["-start_date"]
+        ordering = ["number", "name"]
 
     def __str__(self):
+        return self.name
+
+    @property
+    def year(self):
+        """Academic year 1-4: Semesters 1-2 -> Year 1, 3-4 -> Year 2, ..."""
+        if not self.number:
+            return None
+        return (self.number - 1) // 2 + 1
+
+    @property
+    def display_name(self):
+        if self.number:
+            return f"Semester {self.number} (Year {self.year})"
         return self.name
 
 

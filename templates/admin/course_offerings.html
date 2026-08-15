@@ -36,7 +36,7 @@
           <label class="block text-sm font-semibold text-slate-600 mb-1">Semester</label>
           <select name="semester" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500">
             {% for s in semesters %}
-            <option value="{{ s.pk }}" {% if s.is_active %}selected{% endif %}>{{ s.name }}{% if s.is_active %} (active){% endif %}</option>
+            <option value="{{ s.pk }}" {% if s.is_active %}selected{% endif %}>{{ s.display_name }}{% if s.is_active %} (current){% endif %}</option>
             {% endfor %}
           </select>
         </div>

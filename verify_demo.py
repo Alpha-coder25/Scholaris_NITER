@@ -48,7 +48,7 @@ def post_json(client, url, payload):
 print("\n=== Scholaris MVP verification ===\n")
 
 # ------------------------------------------------------------------ context
-offering = CourseOffering.objects.get(course__code="CSE-2101", semester__name="Spring 2026")
+offering = CourseOffering.objects.get(course__code="CSE-2101", semester__number=5)
 
 # Seeded accounts now have random (or SEED_PASSWORD) credentials — there are no
 # published demo logins. Create dedicated throwaway accounts for the checks so

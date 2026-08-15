@@ -132,7 +132,7 @@ def course_offering_list(request):
     offerings = (
         CourseOffering.objects.select_related("course", "semester", "teacher")
         .prefetch_related("enrollments")
-        .order_by("-semester__start_date", "course__code")
+        .order_by("semester__number", "course__code")
     )
 
     if request.method == "POST":
@@ -182,7 +182,7 @@ def enroll(request):
     )
     offerings = (
         CourseOffering.objects.select_related("course", "semester", "teacher")
-        .order_by("-semester__start_date", "course__code")
+        .order_by("semester__number", "course__code")
     )
 
     if request.method == "POST":

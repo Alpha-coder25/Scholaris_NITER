@@ -100,23 +100,27 @@ class Command(BaseCommand):
                 dept.save()
             depts[key] = dept
 
-        # -------------------------------------------------------------- semester
-        semester, _ = Semester.objects.get_or_create(
-            name="Spring 2026",
-            defaults={
-                "start_date": timezone.now().date() - timedelta(days=45),
-                "end_date": timezone.now().date() + timedelta(days=120),
-                "is_active": True,
-            },
-        )
-        Semester.objects.get_or_create(
-            name="Fall 2025",
-            defaults={
-                "start_date": timezone.now().date() - timedelta(days=220),
-                "end_date": timezone.now().date() - timedelta(days=40),
-                "is_active": False,
-            },
-        )
+        # -------------------------------------------------------------- semesters
+        # Every department runs Semester 1-8 (two per year): 1-2 = Year 1,
+        # 3-4 = Year 2, 5-6 = Year 3, 7-8 = Year 4. Seed all eight slots.
+        semesters = {}
+        for n in range(1, 9):
+            sem, _ = Semester.objects.get_or_create(
+                name=f"Semester {n}",
+                defaults={"number": n},
+            )
+            if sem.number != n:
+                sem.number = n
+                sem.save()
+            semesters[n] = sem
+        # Demo data lives in the current term — Semester 5 (Year 3, first half).
+        semester = semesters[5]
+        semester.is_active = True
+        semester.save()
+        for n, s in semesters.items():
+            if n != 5:
+                s.is_active = False
+                s.save()
 
         # ---------------------------------------------------------------- users
         admin, _ = User.objects.get_or_create(

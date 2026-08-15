@@ -21,7 +21,7 @@
     <select name="semester" onchange="this.form.submit()" class="px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 min-w-[180px]">
       <option value="">Select semester…</option>
       {% for s in semesters %}
-      <option value="{{ s.pk }}" {% if semester.pk == s.pk %}selected{% endif %}>{{ s.name }}{% if s.is_active %} (active){% endif %}</option>
+      <option value="{{ s.pk }}" {% if semester.pk == s.pk %}selected{% endif %}>{{ s.display_name }}{% if s.is_active %} (current){% endif %}</option>
       {% endfor %}
     </select>
   </div>

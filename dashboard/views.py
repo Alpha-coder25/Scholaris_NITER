@@ -28,7 +28,7 @@ def admin_dashboard(request):
     offerings = (
         CourseOffering.objects.select_related("course", "semester", "teacher")
         .prefetch_related("enrollments", "ratings")
-        .order_by("-semester__start_date", "course__code")
+        .order_by("semester__number", "course__code")
     )
     total_students = (
         request.user.__class__.objects.filter(role="student", is_active=True).count()
@@ -104,7 +104,7 @@ def teacher_dashboard(request):
     offerings = (
         request.user.taught_offerings.select_related("course", "semester")
         .prefetch_related("enrollments", "exams")
-        .order_by("-semester__start_date", "course__code")
+        .order_by("semester__number", "course__code")
     )
     for o in offerings:
         o.pending_grading = ExamAnswer.objects.filter(
@@ -152,7 +152,7 @@ def teacher_course_detail(request, offering_id):
 @role_required("teacher")
 def teacher_ratings(request):
     offerings = request.user.taught_offerings.prefetch_related("ratings").order_by(
-        "-semester__start_date", "course__code"
+        "semester__number", "course__code"
     )
     rows = []
     for o in offerings:
@@ -171,7 +171,7 @@ def student_dashboard(request):
             "course_offering", "course_offering__course", "course_offering__teacher",
             "course_offering__semester",
         )
-        .order_by("-course_offering__semester__start_date", "course_offering__course__code")
+        .order_by("course_offering__semester__number", "course_offering__course__code")
     )
 
     for e in enrollments:
