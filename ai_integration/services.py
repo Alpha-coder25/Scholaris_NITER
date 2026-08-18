@@ -668,7 +668,7 @@ def generate_teacher_student_overview(course_offering):
     students = User.objects.filter(
         role="student",
         enrollments__course_offering=course_offering,
-    ).distinct().select_related("first_name", "last_name")
+    ).distinct()
 
     student_summaries = []
     for student in students:
