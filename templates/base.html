@@ -38,6 +38,7 @@
               <a href="{% url 'academics:syllabus' %}" class="hover:underline">Syllabus</a>
               <a href="{% url 'academics:course_offerings' %}" class="hover:underline">Assign Courses</a>
               <a href="{% url 'dashboard:admin_analytics' %}" class="hover:underline">Analytics</a>
+              <a href="{% url 'ai_integration:ai_usage_dashboard' %}" class="hover:underline">🤖 AI Usage</a>
             {% elif user_role == "teacher" %}
               <a href="{% url 'dashboard:teacher_dashboard' %}" class="hover:underline">My Courses</a>
               <a href="{% url 'dashboard:teacher_ratings' %}" class="hover:underline">My Ratings</a>

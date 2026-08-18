@@ -13,6 +13,7 @@ urlpatterns = [
     path("", include("materials.urls")),
     path("", include("exams.urls")),
     path("", include("ratings.urls")),
+    path("", include("ai_integration.urls")),
 ]
 
 if settings.DEBUG:
