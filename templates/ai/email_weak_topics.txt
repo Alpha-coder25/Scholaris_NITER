@@ -1,0 +1,20 @@
+Hi {{ student.get_full_name|default:student.username }},
+
+Your performance in {{ course.code }} — {{ course.title }} shows some areas that need attention.
+
+Topics where your accuracy falls below {{ threshold }}%:
+
+{% for topic in weak_topics %}• {{ topic.name }}: {{ topic.accuracy }}% accuracy ({{ topic.correct }}/{{ topic.total }} correct)
+{% endfor %}
+What you can do:
+• Re-read the lecture notes for these specific topics
+• Practice with sample questions from the course materials
+• Visit your instructor's office hours for extra help
+• Form a study group with classmates
+
+Best regards,
+Scholaris AI Academic Advisor
+
+---
+This is an automated notification from Scholaris.
+You can disable these notifications in your course settings.

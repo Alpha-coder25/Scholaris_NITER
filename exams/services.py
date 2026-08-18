@@ -17,6 +17,21 @@ from django.utils import timezone
 from .models import ExamAnswer, ExamAttempt
 
 
+def _trigger_topic_cache_refresh(answer):
+    """Refresh student topic performance cache after grading.
+    Runs synchronously but is lightweight — the heavy analysis is cached.
+    """
+    try:
+        from ai_integration.services import refresh_student_topic_performance
+        refresh_student_topic_performance(
+            answer.attempt.exam.course_offering,
+            student=answer.attempt.student,
+        )
+    except Exception:
+        # Don't let cache refresh break grading
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Attempt lifecycle
 # ---------------------------------------------------------------------------
@@ -165,6 +180,8 @@ def grade_answer(answer, marks, comment="", grader=None):
     if not attempt.has_pending_cq:
         attempt.status = "graded"
         attempt.save(update_fields=["status"])
+    # Refresh the topic performance cache for this student
+    _trigger_topic_cache_refresh(answer)
     return answer
 
 

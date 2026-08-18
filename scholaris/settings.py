@@ -162,6 +162,21 @@ AI_MODEL = env("AI_MODEL", "claude-sonnet-4-5")
 RATING_MIN_RESPONSES = int(env("RATING_MIN_RESPONSES", "3"))
 
 # ---------------------------------------------------------------------------
+# Email — console backend by default (offline dev), configurable for production
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = env("EMAIL_USE_TLS", "1") == "1"
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Scholaris <noreply@scholaris.niter.edu.bd>")
+
+# AI notifications — auto-notify students with critically weak topics after grading
+AI_NOTIFY_WEAK_TOPICS = env("AI_NOTIFY_WEAK_TOPICS", "1") == "1"
+AI_WEAK_TOPIC_THRESHOLD = int(env("AI_WEAK_TOPIC_THRESHOLD", "30"))  # accuracy % below which a notification fires
+
+# ---------------------------------------------------------------------------
 # Production (Vercel) hardening — activated by setting DEBUG=0
 # ---------------------------------------------------------------------------
 if not DEBUG:

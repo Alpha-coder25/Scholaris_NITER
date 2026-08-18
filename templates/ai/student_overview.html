@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Student Overview · {{ offering.course.code }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900">👨‍🎓 Student Recommendations Overview</h1>
+      <p class="text-slate-600 mt-1">
+        {{ offering.course.code }} · {{ offering.course.title }} — {{ offering.semester.display_name }}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'ai_integration:export_performance_csv' offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 text-sm">
+        📥 Export CSV
+      </a>
+      <a href="{% url 'ai_integration:course_analytics' offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 text-sm">
+        📊 Course Analytics
+      </a>
+      <a href="{% url 'dashboard:teacher_course' offering_id=offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold hover:bg-emerald-200 text-sm">
+        ← Back to Course
+      </a>
+    </div>
+  </div>
+
+  <!-- Risk Overview Cards -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-slate-700">{{ total_students }}</div>
+      <div class="text-sm text-slate-600 mt-1">Total Students</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-red-200 p-5">
+      <div class="text-3xl font-extrabold text-red-600">{{ high_risk }}</div>
+      <div class="text-sm text-red-600 mt-1">🔴 High Risk</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-amber-200 p-5">
+      <div class="text-3xl font-extrabold text-amber-600">{{ medium_risk }}</div>
+      <div class="text-sm text-amber-600 mt-1">🟡 Medium Risk</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-emerald-200 p-5">
+      <div class="text-3xl font-extrabold text-emerald-600">{{ low_risk }}</div>
+      <div class="text-sm text-emerald-600 mt-1">🟢 Low Risk</div>
+    </div>
+  </div>
+
+  <!-- Common Weak Topics -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">📋 Common Weak Topics Across Class</h2>
+    {% if common_weak_topics %}
+    <div class="flex flex-wrap gap-2">
+      {% for topic, count in common_weak_topics %}
+      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-sm font-medium">
+        {{ topic|truncatechars:40 }}
+        <span class="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-bold">{{ count }}</span>
+      </span>
+      {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-3">Topics most students struggle with — consider reviewing these in class.</p>
+    {% else %}
+    <p class="text-slate-500 text-sm italic">No common weak topics identified yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Student List -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">👨‍🎓 All Students</h2>
+
+    {% if student_summaries %}
+    <div class="space-y-3">
+      {% for s in student_summaries %}
+      <div class="border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow
+                  {% if s.risk_level == 'high' %}border-l-4 border-l-red-500
+                  {% elif s.risk_level == 'medium' %}border-l-4 border-l-amber-500
+                  {% elif s.risk_level == 'low' %}border-l-4 border-l-emerald-500
+                  {% else %}border-l-4 border-l-slate-300{% endif %}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-3">
+            <span class="font-bold text-slate-900">{{ s.student.get_full_name|default:s.student.username }}</span>
+            <span class="text-slate-500 text-xs">@{{ s.student.username }}</span>
+            {% if s.risk_level == 'high' %}
+              <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">HIGH RISK</span>
+            {% elif s.risk_level == 'medium' %}
+              <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">MEDIUM</span>
+            {% elif s.risk_level == 'low' %}
+              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">ON TRACK</span>
+            {% else %}
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">NO DATA</span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-slate-500">{{ s.exams_taken }} exam{{ s.exams_taken|pluralize }}</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
+              {% if s.accuracy_pct >= 70 %}bg-emerald-100 text-emerald-700
+              {% elif s.accuracy_pct >= 40 %}bg-amber-100 text-amber-700
+              {% elif s.accuracy_pct > 0 %}bg-red-100 text-red-700
+              {% else %}bg-slate-100 text-slate-500{% endif %}">
+              {{ s.accuracy_pct }}%
+            </span>
+          </div>
+        </div>
+
+        <!-- Weak Topics -->
+        {% if s.weak_topics %}
+        <div class="mt-2 flex flex-wrap gap-1.5">
+          <span class="text-xs font-semibold text-red-600 mr-1">Weak:</span>
+          {% for t in s.weak_topics %}
+          <span class="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium">
+            {{ t.topic|truncatechars:35 }} ({{ t.accuracy_pct }}%)
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Strong Topics -->
+        {% if s.strong_topics %}
+        <div class="mt-1.5 flex flex-wrap gap-1.5">
+          <span class="text-xs font-semibold text-emerald-600 mr-1">Strong:</span>
+          {% for t in s.strong_topics %}
+          <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium">
+            {{ t.topic|truncatechars:35 }} ({{ t.accuracy_pct }}%)
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- No weak topics message -->
+        {% if not s.weak_topics and s.risk_level != 'no_data' %}
+        <div class="mt-2">
+          <span class="text-xs text-emerald-600 font-medium">✅ No weak topics — performing well across all areas</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-8">
+      <span class="text-4xl">📚</span>
+      <p class="text-slate-600 mt-2">No students enrolled in this course yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Action Guide -->
+  <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl shadow-sm p-6 text-white">
+    <h2 class="text-lg font-bold mb-3">💡 Teaching Recommendations</h2>
+    <ul class="space-y-2 text-sm text-emerald-100">
+      <li class="flex items-start gap-2">
+        <span class="font-bold">1.</span>
+        <span>Focus class reviews on <strong>common weak topics</strong> — they affect multiple students.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">2.</span>
+        <span>Schedule <strong>office hours</strong> for high-risk students who need one-on-one support.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">3.</span>
+        <span>Create <strong>practice materials</strong> targeting the weakest topics before the next exam.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">4.</span>
+        <span>Consider <strong>peer tutoring</strong> — pair strong students with those who are struggling.</span>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

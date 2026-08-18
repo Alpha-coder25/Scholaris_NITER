@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Study Recommendations · {{ offering.course.code }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900">📚 Study Recommendations</h1>
+      <p class="text-slate-600 mt-1">
+        {{ offering.course.code }} · {{ offering.course.title }}
+      </p>
+    </div>
+    <a href="{% url 'dashboard:student_course' offering_id=offering.pk %}"
+       class="px-4 py-2 rounded-lg bg-sky-100 text-sky-700 font-semibold hover:bg-sky-200 text-sm">
+      ← Back to Course
+    </a>
+  </div>
+
+  <!-- Overall Stats -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-sky-600">{{ recommendations.overall_stats.exams_taken }}</div>
+      <div class="text-sm text-slate-600 mt-1">Exams Taken</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-slate-700">{{ recommendations.overall_stats.total_questions }}</div>
+      <div class="text-sm text-slate-600 mt-1">Questions Answered</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-emerald-600">{{ recommendations.overall_stats.correct_answers }}</div>
+      <div class="text-sm text-slate-600 mt-1">Correct Answers</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold {% if recommendations.overall_stats.accuracy_pct >= 70 %}text-emerald-600{% elif recommendations.overall_stats.accuracy_pct >= 40 %}text-amber-600{% else %}text-red-600{% endif %}">
+        {{ recommendations.overall_stats.accuracy_pct }}%
+      </div>
+      <div class="text-sm text-slate-600 mt-1">Overall Accuracy</div>
+    </div>
+  </div>
+
+  <!-- AI Recommendations -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">🤖 Personalized Recommendations</h2>
+    <div class="space-y-3">
+      {% for rec in recommendations.recommendations %}
+      <div class="flex items-start gap-3 p-4 bg-sky-50 rounded-lg border border-sky-100">
+        <span class="text-lg flex-shrink-0">
+          {% if '⚠️' in rec %}⚠️
+          {% elif '✅' in rec %}✅
+          {% elif '🔴' in rec %}🔴
+          {% elif '💪' in rec %}💪
+          {% elif '📚' in rec %}📚
+          {% elif '⏰' in rec %}⏰
+          {% elif '📝' in rec %}📝
+          {% else %}💡{% endif %}
+        </span>
+        <p class="text-sm text-slate-700">{{ rec }}</p>
+      </div>
+      {% empty %}
+      <p class="text-slate-500 text-sm italic">No recommendations available yet. Complete some exams to get personalized suggestions.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Weak Topics -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">🔴 Topics Needing Improvement</h2>
+    {% if recommendations.weak_topics %}
+    <div class="space-y-4">
+      {% for topic in recommendations.weak_topics %}
+      <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-slate-900">{{ topic.topic }}</h3>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700">
+            {{ topic.accuracy_pct }}%
+          </span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-slate-600">
+          <span>{{ topic.correct }}/{{ topic.questions_attempted }} correct</span>
+          <span>{{ topic.marks_earned }}/{{ topic.marks_possible }} marks</span>
+        </div>
+        <div class="mt-2 w-full bg-red-200 rounded-full h-2">
+          <div class="bg-red-500 h-2 rounded-full" style="width: {{ topic.accuracy_pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <span class="text-4xl">🎉</span>
+      <p class="text-slate-600 mt-2">No weak topics identified — you're doing great across the board!</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Strong Topics -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">💪 Your Strengths</h2>
+    {% if recommendations.strong_topics %}
+    <div class="space-y-4">
+      {% for topic in recommendations.strong_topics %}
+      <div class="border border-emerald-200 rounded-lg p-4 bg-emerald-50">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold text-slate-900">{{ topic.topic }}</h3>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-emerald-100 text-emerald-700">
+            {{ topic.accuracy_pct }}%
+          </span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-slate-600">
+          <span>{{ topic.correct }}/{{ topic.questions_attempted }} correct</span>
+          <span>{{ topic.marks_earned }}/{{ topic.marks_possible }} marks</span>
+        </div>
+        <div class="mt-2 w-full bg-emerald-200 rounded-full h-2">
+          <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ topic.accuracy_pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <p class="text-slate-600">Keep studying to build your strengths in this course.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Study Tips -->
+  <div class="bg-gradient-to-r from-sky-500 to-indigo-600 rounded-xl shadow-sm p-6 text-white">
+    <h2 class="text-lg font-bold mb-3">💡 Study Tips</h2>
+    <ul class="space-y-2 text-sm text-sky-100">
+      <li class="flex items-start gap-2">
+        <span class="font-bold">1.</span>
+        <span>Review your weak topics first — they have the highest impact on your overall score.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">2.</span>
+        <span>Use practice questions from the course materials to test your understanding.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">3.</span>
+        <span>Study in short, focused sessions (25-30 minutes) with breaks in between.</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="font-bold">4.</span>
+        <span>Explain concepts to a study partner — teaching is one of the best ways to learn.</span>
+      </li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

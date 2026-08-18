@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}AI Analytics · {{ offering.course.code }}{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-extrabold text-slate-900">📊 AI Course Analytics</h1>
+      <p class="text-slate-600 mt-1">
+        {{ offering.course.code }} · {{ offering.course.title }} — {{ offering.semester.display_name }}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'ai_integration:export_topic_csv' offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 text-sm">
+        📥 Export Topics CSV
+      </a>
+      <a href="{% url 'ai_integration:student_overview' offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-sky-100 text-sky-700 font-semibold hover:bg-sky-200 text-sm">
+        👨‍🎓 Student Overview
+      </a>
+      <a href="{% url 'dashboard:teacher_course' offering_id=offering.pk %}"
+         class="px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-semibold hover:bg-emerald-200 text-sm">
+        ← Back to Course
+      </a>
+    </div>
+  </div>
+
+  <!-- Class Overview -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-emerald-600">{{ progress.class_overview.total_students }}</div>
+      <div class="text-sm text-slate-600 mt-1">Students Analyzed</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-sky-600">{{ progress.class_overview.total_exams }}</div>
+      <div class="text-sm text-slate-600 mt-1">Exams Completed</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold {% if progress.class_overview.avg_score_pct >= 70 %}text-emerald-600{% elif progress.class_overview.avg_score_pct >= 40 %}text-amber-600{% else %}text-red-600{% endif %}">
+        {{ progress.class_overview.avg_score_pct }}%
+      </div>
+      <div class="text-sm text-slate-600 mt-1">Class Average Accuracy</div>
+    </div>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-slate-900">🤖 AI Insights</h2>
+      <button onclick="refreshInsights()" id="refresh-btn"
+              class="px-3 py-1.5 rounded-lg bg-violet-100 text-violet-700 font-semibold hover:bg-violet-200 text-sm">
+        Refresh
+      </button>
+    </div>
+    <div id="insights-container" class="space-y-3">
+      {% for insight in insights %}
+      <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+        <span class="text-lg flex-shrink-0">{{ insight|truncatechars:1 }}</span>
+        <p class="text-sm text-slate-700">{{ insight|truncatechars:1 }}</p>
+      </div>
+      {% empty %}
+      <p class="text-slate-500 text-sm italic">No insights available yet. Insights appear after students complete exams.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Topic Performance -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">📚 Topic Performance</h2>
+    {% if progress.topic_summary %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200">
+            <th class="text-left py-3 px-4 font-semibold text-slate-600">Topic</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Total</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Correct</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Accuracy</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for topic in progress.topic_summary %}
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-3 px-4 font-medium text-slate-800">{{ topic.topic }}</td>
+            <td class="py-3 px-4 text-center text-slate-600">{{ topic.total_answers }}</td>
+            <td class="py-3 px-4 text-center text-slate-600">{{ topic.correct }}</td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                {% if topic.accuracy_pct >= 70 %}bg-emerald-100 text-emerald-700
+                {% elif topic.accuracy_pct >= 40 %}bg-amber-100 text-amber-700
+                {% else %}bg-red-100 text-red-700{% endif %}">
+                {{ topic.accuracy_pct }}%
+              </span>
+            </td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                {% if topic.score_pct >= 70 %}bg-emerald-100 text-emerald-700
+                {% elif topic.score_pct >= 40 %}bg-amber-100 text-amber-700
+                {% else %}bg-red-100 text-red-700{% endif %}">
+                {{ topic.score_pct }}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-slate-500 text-sm italic">No topic data available yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Student Gap Analysis -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">👨‍🎓 Student Gap Analysis</h2>
+    {% if student_profiles %}
+    <div class="space-y-4">
+      {% for profile in student_profiles %}
+      <div class="border border-slate-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <span class="font-bold text-slate-900">{{ profile.student.get_full_name|default:profile.student.username }}</span>
+            <span class="text-slate-500 text-sm ml-2">@{{ profile.student.username }}</span>
+          </div>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold
+            {% if profile.accuracy_pct >= 70 %}bg-emerald-100 text-emerald-700
+            {% elif profile.accuracy_pct >= 40 %}bg-amber-100 text-amber-700
+            {% else %}bg-red-100 text-red-700{% endif %}">
+            {{ profile.accuracy_pct }}%
+          </span>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          {% if profile.weak_topics %}
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-red-600">Needs help:</span>
+            {% for t in profile.weak_topics %}
+            <span class="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium">
+              {{ t.topic|truncatechars:40 }} ({{ t.accuracy_pct }}%)
+            </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% if profile.strong_topics %}
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-emerald-600">Strong in:</span>
+            {% for t in profile.strong_topics %}
+            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-medium">
+              {{ t.topic|truncatechars:40 }} ({{ t.accuracy_pct }}%)
+            </span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-slate-500 text-sm italic">No student data available yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+async function refreshInsights() {
+  const btn = document.getElementById('refresh-btn');
+  const container = document.getElementById('insights-container');
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  try {
+    const resp = await fetch('{% url "ai_integration:ai_insights" offering_id=offering.pk %}');
+    if (resp.ok) {
+      container.innerHTML = await resp.text();
+    } else {
+      container.innerHTML = '<p class="text-red-500 text-sm">Failed to refresh insights.</p>';
+    }
+  } catch(e) {
+    container.innerHTML = '<p class="text-red-500 text-sm">Network error.</p>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refresh';
+  }
+}
+</script>
+{% endblock %}

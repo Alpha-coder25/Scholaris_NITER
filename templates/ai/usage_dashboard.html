@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}AI Usage Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-extrabold text-slate-900">🤖 AI Usage Dashboard</h1>
+    <p class="text-slate-600 mt-1">Monitor AI API usage, performance, and costs across the platform.</p>
+  </div>
+
+  <!-- Overall Stats -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-sky-600">{{ stats.total_calls|default:0 }}</div>
+      <div class="text-sm text-slate-600 mt-1">Total AI Calls</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-emerald-600">{{ stats.success_count|default:0 }}</div>
+      <div class="text-sm text-slate-600 mt-1">Successful</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-red-600">{{ stats.error_count|default:0 }}</div>
+      <div class="text-sm text-slate-600 mt-1">Errors</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-3xl font-extrabold text-amber-600">{{ stats.fallback_count|default:0 }}</div>
+      <div class="text-sm text-slate-600 mt-1">Offline Fallbacks</div>
+    </div>
+  </div>
+
+  <!-- Token & Latency Stats -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-2xl font-extrabold text-violet-600">{{ stats.total_input_tokens|default:0|intcomma }}</div>
+      <div class="text-sm text-slate-600 mt-1">Input Tokens Used</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-2xl font-extrabold text-violet-600">{{ stats.total_output_tokens|default:0|intcomma }}</div>
+      <div class="text-sm text-slate-600 mt-1">Output Tokens Used</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+      <div class="text-2xl font-extrabold text-violet-600">{{ stats.avg_latency|default:0|floatformat:0 }}ms</div>
+      <div class="text-sm text-slate-600 mt-1">Average Latency</div>
+    </div>
+  </div>
+
+  <!-- Per-Feature Breakdown -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">Feature Breakdown</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {% for fs in feature_stats %}
+      <div class="border border-slate-200 rounded-lg p-4">
+        <div class="text-sm font-bold text-slate-800 mb-1">{{ fs.label }}</div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-extrabold text-sky-600">{{ fs.calls|default:0 }}</span>
+          <span class="text-sm text-slate-500">calls</span>
+        </div>
+        <div class="text-xs text-slate-500 mt-1">
+          {{ fs.success|default:0 }} successful
+          {% if fs.avg_latency %} · {{ fs.avg_latency|floatformat:0 }}ms avg{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Recent Activity Log -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-4">Recent Activity</h2>
+    {% if logs %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200">
+            <th class="text-left py-3 px-4 font-semibold text-slate-600">Time</th>
+            <th class="text-left py-3 px-4 font-semibold text-slate-600">Feature</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Status</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Model</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Latency</th>
+            <th class="text-center py-3 px-4 font-semibold text-slate-600">Tokens</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="py-3 px-4 text-slate-600 text-xs">{{ log.created_at|date:"M d, H:i:s" }}</td>
+            <td class="py-3 px-4 font-medium text-slate-800">{{ log.get_feature_display }}</td>
+            <td class="py-3 px-4 text-center">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                {% if log.status == 'success' %}bg-emerald-100 text-emerald-700
+                {% elif log.status == 'error' %}bg-red-100 text-red-700
+                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                {{ log.status }}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-center text-slate-600 text-xs">{{ log.model_used }}</td>
+            <td class="py-3 px-4 text-center text-slate-600">{{ log.latency_ms }}ms</td>
+            <td class="py-3 px-4 text-center text-slate-600 text-xs">
+              {{ log.input_tokens }}↓ / {{ log.output_tokens }}↑
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-slate-500 text-sm italic">No AI usage recorded yet. Calls will appear here after AI features are used.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

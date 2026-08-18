@@ -12,6 +12,8 @@ request/response cycle is never blocked on the AI API. For the hackathon build
 it runs synchronously behind a thin service layer, so the exact same code path
 can move into a Celery task later without touching the views.
 """
+import csv
+import io
 import json
 import random
 import re
@@ -642,3 +644,680 @@ def _offline_cq_evaluation(answer_text, reference_text):
         "strengths": strengths,
         "gaps": gaps,
     }
+
+
+# ---------------------------------------------------------------------------
+# Public API — Teacher Student Overview
+# ---------------------------------------------------------------------------
+def generate_teacher_student_overview(course_offering):
+    """Generate an aggregated view of all students' performance for a teacher.
+
+    Returns a list of student summaries with:
+      - student: user object
+      - accuracy_pct: overall accuracy
+      - weak_topics: list of weak topics
+      - strong_topics: list of strong topics
+      - exams_taken: number of exams completed
+      - risk_level: 'high', 'medium', or 'low'
+
+    This is a read-only aggregation — no AI API calls needed.
+    """
+    from accounts.models import User
+    from exams.models import ExamAnswer
+
+    students = User.objects.filter(
+        role="student",
+        enrollments__course_offering=course_offering,
+    ).distinct().select_related("first_name", "last_name")
+
+    student_summaries = []
+    for student in students:
+        # Get all answers for this student
+        answers = ExamAnswer.objects.filter(
+            attempt__exam__course_offering=course_offering,
+            attempt__student=student,
+            submitted_at__isnull=False,
+        ).select_related(
+            "exam_question", "exam_question__question"
+        )
+
+        if not answers:
+            student_summaries.append({
+                "student": student,
+                "accuracy_pct": 0,
+                "weak_topics": [],
+                "strong_topics": [],
+                "exams_taken": 0,
+                "risk_level": "no_data",
+                "total_questions": 0,
+            })
+            continue
+
+        # Analyze per-topic performance
+        topic_stats = defaultdict(lambda: {
+            "total": 0, "correct": 0, "earned": 0, "possible": 0
+        })
+        total_correct = 0
+        total_questions = 0
+        exams_taken = answers.values("attempt__exam_id").distinct().count()
+
+        for ans in answers:
+            q = ans.exam_question.question
+            eq = ans.exam_question
+            topic = _extract_topic(q.text)
+            score = ans.auto_score or 0
+            is_correct = (
+                score > 0 if q.type == "mcq"
+                else (ans.manual_score is not None and ans.manual_score > 0)
+            )
+            marks_earned = score if q.type == "mcq" else (ans.manual_score or 0)
+            marks_possible = eq.marks
+
+            topic_stats[topic]["total"] += 1
+            if is_correct:
+                topic_stats[topic]["correct"] += 1
+                total_correct += 1
+            total_questions += 1
+            topic_stats[topic]["earned"] += marks_earned
+            topic_stats[topic]["possible"] += marks_possible
+
+        # Classify topics
+        weak_topics = []
+        strong_topics = []
+        for topic, stats in topic_stats.items():
+            pct = round(100 * stats["correct"] / stats["total"], 1) if stats["total"] else 0
+            topic_info = {
+                "topic": topic,
+                "accuracy_pct": pct,
+                "questions_attempted": stats["total"],
+                "correct": stats["correct"],
+            }
+            if pct < 50:
+                weak_topics.append(topic_info)
+            elif pct >= 80:
+                strong_topics.append(topic_info)
+
+        weak_topics.sort(key=lambda x: x["accuracy_pct"])
+        strong_topics.sort(key=lambda x: -x["accuracy_pct"])
+
+        overall_accuracy = round(100 * total_correct / total_questions, 1) if total_questions else 0
+
+        # Determine risk level
+        if overall_accuracy < 40:
+            risk_level = "high"
+        elif overall_accuracy < 60:
+            risk_level = "medium"
+        else:
+            risk_level = "low"
+
+        student_summaries.append({
+            "student": student,
+            "accuracy_pct": overall_accuracy,
+            "weak_topics": weak_topics[:5],
+            "strong_topics": strong_topics[:3],
+            "exams_taken": exams_taken,
+            "risk_level": risk_level,
+            "total_questions": total_questions,
+        })
+
+    # Sort by risk (high first), then by accuracy (lowest first)
+    risk_order = {"high": 0, "medium": 1, "low": 2, "no_data": 3}
+    student_summaries.sort(key=lambda x: (risk_order.get(x["risk_level"], 3), x["accuracy_pct"]))
+
+    return student_summaries
+
+
+# ---------------------------------------------------------------------------
+# Public API — Student Study Recommendations
+# ---------------------------------------------------------------------------
+def generate_student_recommendations(student, course_offering):
+    """Generate personalized study recommendations for a student in a course.
+
+    Analyzes the student's exam performance and produces:
+      - weak_topics: topics needing improvement with accuracy data
+      - strong_topics: topics where the student excels
+      - recommendations: actionable study suggestions
+      - overall_stats: performance summary
+
+    The AI generates natural-language recommendations; the offline path
+    provides rule-based suggestions.
+    """
+    from exams.models import ExamAnswer
+
+    # Get all answers for this student in this offering
+    answers = ExamAnswer.objects.filter(
+        attempt__exam__course_offering=course_offering,
+        attempt__student=student,
+        submitted_at__isnull=False,
+    ).select_related(
+        "exam_question", "exam_question__question"
+    )
+
+    if not answers:
+        return {
+            "weak_topics": [],
+            "strong_topics": [],
+            "recommendations": [
+                "You haven't taken any exams in this course yet. Start by reviewing the course materials and taking a practice exam when available."
+            ],
+            "overall_stats": {
+                "total_questions": 0,
+                "correct_answers": 0,
+                "accuracy_pct": 0,
+                "exams_taken": 0,
+            },
+        }
+
+    # Analyze per-topic performance
+    topic_stats = defaultdict(lambda: {
+        "total": 0, "correct": 0, "earned": 0, "possible": 0
+    })
+    total_correct = 0
+    total_questions = 0
+    exams_taken = answers.values("attempt__exam_id").distinct().count()
+
+    for ans in answers:
+        q = ans.exam_question.question
+        eq = ans.exam_question
+        topic = _extract_topic(q.text)
+        score = ans.auto_score or 0
+        is_correct = score > 0 if q.type == "mcq" else (ans.manual_score is not None and ans.manual_score > 0)
+        marks_earned = score if q.type == "mcq" else (ans.manual_score or 0)
+        marks_possible = eq.marks
+
+        topic_stats[topic]["total"] += 1
+        if is_correct:
+            topic_stats[topic]["correct"] += 1
+            total_correct += 1
+        total_questions += 1
+        topic_stats[topic]["earned"] += marks_earned
+        topic_stats[topic]["possible"] += marks_possible
+
+    # Classify topics
+    weak_topics = []
+    strong_topics = []
+    for topic, stats in topic_stats.items():
+        pct = round(100 * stats["correct"] / stats["total"], 1) if stats["total"] else 0
+        topic_info = {
+            "topic": topic,
+            "accuracy_pct": pct,
+            "questions_attempted": stats["total"],
+            "correct": stats["correct"],
+            "marks_earned": stats["earned"],
+            "marks_possible": stats["possible"],
+        }
+        if pct < 50:
+            weak_topics.append(topic_info)
+        elif pct >= 80:
+            strong_topics.append(topic_info)
+
+    weak_topics.sort(key=lambda x: x["accuracy_pct"])
+    strong_topics.sort(key=lambda x: -x["accuracy_pct"])
+
+    overall_accuracy = round(100 * total_correct / total_questions, 1) if total_questions else 0
+
+    # Generate recommendations
+    if settings.ANTHROPIC_API_KEY and anthropic is not None:
+        try:
+            recommendations = _generate_ai_recommendations(
+                student, course_offering, weak_topics, strong_topics, overall_accuracy
+            )
+        except Exception as exc:
+            _log_usage(
+                feature="progress_analysis",
+                status="error",
+                error_message=str(exc)[:500],
+            )
+            recommendations = _offline_recommendations(weak_topics, strong_topics, overall_accuracy)
+    else:
+        recommendations = _offline_recommendations(weak_topics, strong_topics, overall_accuracy)
+        _log_usage(feature="progress_analysis", status="fallback")
+
+    return {
+        "weak_topics": weak_topics,
+        "strong_topics": strong_topics,
+        "recommendations": recommendations,
+        "overall_stats": {
+            "total_questions": total_questions,
+            "correct_answers": total_correct,
+            "accuracy_pct": overall_accuracy,
+            "exams_taken": exams_taken,
+        },
+    }
+
+
+def _generate_ai_recommendations(student, course_offering, weak_topics, strong_topics, overall_accuracy):
+    """Use AI to generate personalized study recommendations."""
+    student_name = student.get_full_name() or student.username
+    course_name = f"{course_offering.course.code} — {course_offering.course.title}"
+
+    weak_summary = json.dumps(weak_topics[:5], indent=2) if weak_topics else "None"
+    strong_summary = json.dumps(strong_topics[:3], indent=2) if strong_topics else "None"
+
+    prompt = f"""You are a supportive AI academic advisor for a university student.
+
+Student: {student_name}
+Course: {course_name}
+Overall accuracy: {overall_accuracy}%
+
+Weak topics (need improvement):
+{weak_summary}
+
+Strong topics:
+{strong_summary}
+
+Generate 4-6 personalized, actionable study recommendations. Be specific and encouraging.
+Focus on:
+1. Which topics to prioritize for review
+2. Specific study strategies (practice problems, concept mapping, etc.)
+3. Resources to use (textbook chapters, online tutorials, study groups)
+4. Time management tips for improvement
+
+Return as a JSON array of strings, no commentary:
+["recommendation 1", "recommendation 2", ...]"""
+
+    raw = _timed_anthropic_call(prompt, "progress_analysis")
+    raw = re.sub(r"^```(json)?|```$", "", raw.strip(), flags=re.MULTILINE).strip()
+    data = json.loads(raw)
+    if isinstance(data, list):
+        return [str(r) for r in data[:6]]
+    return _offline_recommendations(weak_topics, strong_topics, overall_accuracy)
+
+
+def _offline_recommendations(weak_topics, strong_topics, overall_accuracy):
+    """Rule-based study recommendations without AI — works offline."""
+    recommendations = []
+
+    if overall_accuracy < 40:
+        recommendations.append(
+            "⚠️ Your overall accuracy is below 40%. Consider scheduling a meeting with your instructor to discuss areas of difficulty."
+        )
+    elif overall_accuracy < 60:
+        recommendations.append(
+            "📊 Your accuracy is around the passing range. With focused review of weak topics, you can improve significantly."
+        )
+    elif overall_accuracy >= 80:
+        recommendations.append(
+            "✅ Great work! You're performing well. Focus on maintaining this level and helping classmates who may struggle."
+        )
+
+    if weak_topics:
+        topic_names = ", ".join(t["topic"] for t in weak_topics[:3])
+        recommendations.append(
+            f"🔴 Priority topics to review: {topic_names}. Spend extra time on these areas before the next exam."
+        )
+        if weak_topics[0]["accuracy_pct"] < 30:
+            recommendations.append(
+                f"📚 The topic \"{weak_topics[0]['topic']}\" needs significant review. Consider re-reading the relevant lecture notes and doing practice problems."
+            )
+    else:
+        recommendations.append(
+            "✅ No weak topics identified — keep up the great work across all areas!"
+        )
+
+    if strong_topics:
+        names = ", ".join(t["topic"] for t in strong_topics[:2])
+        recommendations.append(
+            f"💪 Your strengths: {names}. Use these as anchors when studying — connecting new concepts to what you already know helps retention."
+        )
+
+    # General study tips
+    if overall_accuracy < 70:
+        recommendations.append(
+            "⏰ Try spaced repetition: review material in short sessions (20-30 min) over several days rather than cramming."
+        )
+        recommendations.append(
+            "📝 Practice active recall: test yourself on concepts without looking at notes, then check your answers."
+        )
+
+    return recommendations
+
+
+# ---------------------------------------------------------------------------
+# Public API — Student Topic Performance Cache Refresh
+# ---------------------------------------------------------------------------
+def refresh_student_topic_performance(course_offering, student=None):
+    """Refresh cached StudentTopicPerformance records for a course offering.
+
+    Called automatically after exam grading and available as a management
+    command for manual refresh. Updates the cache so analytics pages load
+    instantly without re-analyzing raw exam data.
+
+    Args:
+        course_offering: The CourseOffering to refresh.
+        student: Optional specific student. If None, refreshes all enrolled.
+    """
+    from accounts.models import User
+    from exams.models import ExamAnswer
+    from .models import StudentTopicPerformance
+
+    students = User.objects.filter(
+        role="student",
+        enrollments__course_offering=course_offering,
+    ).distinct()
+    if student:
+        students = students.filter(pk=student.pk)
+
+    for stu in students:
+        answers = ExamAnswer.objects.filter(
+            attempt__exam__course_offering=course_offering,
+            attempt__student=stu,
+            submitted_at__isnull=False,
+        ).select_related(
+            "exam_question", "exam_question__question"
+        )
+
+        if not answers:
+            continue
+
+        # Aggregate by topic
+        topic_data = defaultdict(lambda: {
+            "total": 0, "correct": 0, "earned": Decimal(0), "possible": Decimal(0)
+        })
+
+        for ans in answers:
+            q = ans.exam_question.question
+            eq = ans.exam_question
+            topic = _extract_topic(q.text)
+            score = ans.auto_score or 0
+            is_correct = (
+                score > 0 if q.type == "mcq"
+                else (ans.manual_score is not None and ans.manual_score > 0)
+            )
+            marks_earned = Decimal(str(score if q.type == "mcq" else (ans.manual_score or 0)))
+            marks_possible = Decimal(str(eq.marks))
+
+            topic_data[topic]["total"] += 1
+            if is_correct:
+                topic_data[topic]["correct"] += 1
+            topic_data[topic]["earned"] += marks_earned
+            topic_data[topic]["possible"] += marks_possible
+
+        # Upsert StudentTopicPerformance records
+        for topic, data in topic_data.items():
+            total = data["total"]
+            correct = data["correct"]
+            pct = round(100 * correct / total, 1) if total else 0
+
+            if pct >= 80:
+                level = "strong"
+            elif pct >= 50:
+                level = "moderate"
+            elif pct >= 25:
+                level = "weak"
+            else:
+                level = "critical"
+
+            StudentTopicPerformance.objects.update_or_create(
+                student=stu,
+                course_offering=course_offering,
+                topic=topic,
+                defaults={
+                    "total_questions": total,
+                    "correct_answers": correct,
+                    "total_marks_earned": data["earned"],
+                    "total_marks_possible": data["possible"],
+                    "strength_level": level,
+                },
+            )
+
+    # Check for weak topics and send notifications
+    notified = check_and_notify_weak_topics(course_offering, student=student)
+
+    return students.count()
+
+
+# ---------------------------------------------------------------------------
+# Public API — Weak Topics Email Notifications
+# ---------------------------------------------------------------------------
+def check_and_notify_weak_topics(course_offering, student=None):
+    """Check for students with critically weak topics and send notifications.
+
+    Called after cache refresh. Respects AI_NOTIFY_WEAK_TOPICS setting.
+    Only notifies students whose accuracy on any topic falls below the
+    configured threshold.
+
+    Args:
+        course_offering: The CourseOffering to check.
+        student: Optional specific student to check.
+
+    Returns:
+        List of student emails that were notified.
+    """
+    from django.conf import settings as django_settings
+    from .models import StudentTopicPerformance
+
+    if not getattr(django_settings, "AI_NOTIFY_WEAK_TOPICS", True):
+        return []
+
+    threshold = getattr(django_settings, "AI_WEAK_TOPIC_THRESHOLD", 30)
+
+    # Get students with critically weak topics
+    qs = StudentTopicPerformance.objects.filter(
+        course_offering=course_offering,
+        strength_level="critical",
+    ).select_related("student", "course_offering__course")
+
+    if student:
+        qs = qs.filter(student=student)
+
+    # Group by student
+    student_weak_topics = defaultdict(list)
+    for perf in qs:
+        if perf.accuracy_pct < threshold:
+            student_weak_topics[perf.student].append(perf)
+
+    notified = []
+    for stu, topics in student_weak_topics.items():
+        if stu.email:
+            _send_weak_topics_email(stu, course_offering, topics)
+            notified.append(stu.email)
+
+    return notified
+
+
+def _send_weak_topics_email(student, course_offering, weak_topics):
+    """Send an email notification about critically weak topics."""
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+    from django.conf import settings as django_settings
+
+    course = course_offering.course
+    topic_data = [
+        {
+            "name": t.topic,
+            "accuracy": t.accuracy_pct,
+            "correct": t.correct_answers,
+            "total": t.total_questions,
+        }
+        for t in weak_topics
+    ]
+
+    subject = f"📚 Study Alert: Weak Topics in {course.code} — {course.title}"
+
+    # Try to use template, fall back to plain text
+    try:
+        html_message = render_to_string("ai/email_weak_topics.html", {
+            "student": student,
+            "course": course,
+            "offering": course_offering,
+            "weak_topics": topic_data,
+            "threshold": getattr(django_settings, "AI_WEAK_TOPIC_THRESHOLD", 30),
+        })
+        plain_message = render_to_string("ai/email_weak_topics.txt", {
+            "student": student,
+            "course": course,
+            "offering": course_offering,
+            "weak_topics": topic_data,
+        })
+    except Exception:
+        # Fallback plain text if templates not found
+        topic_lines = "\n".join(
+            f"  • {t['name']}: {t['accuracy']}% accuracy ({t['correct']}/{t['total']} correct)"
+            for t in topic_data
+        )
+        plain_message = (
+            f"Hi {student.get_full_name() or student.username},\n\n"
+            f"Your performance in {course.code} — {course.title} shows some areas that need attention:\n\n"
+            f"{topic_lines}\n\n"
+            f"We recommend reviewing the lecture materials for these topics and practicing with sample questions."
+            f"\n\nBest regards,\nScholaris AI Academic Advisor"
+        )
+        html_message = None
+
+    try:
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=getattr(django_settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[student.email],
+            html_message=html_message,
+            fail_silently=True,
+        )
+        _log_usage(
+            feature="progress_analysis",
+            status="success",
+            metadata={
+                "notification": "weak_topics_email",
+                "student_id": student.id,
+                "course_id": course.id,
+                "weak_topics_count": len(weak_topics),
+            },
+        )
+    except Exception as exc:
+        _log_usage(
+            feature="progress_analysis",
+            status="error",
+            error_message=f"Email notification failed: {exc}",
+            metadata={
+                "notification": "weak_topics_email",
+                "student_id": student.id,
+            },
+        )
+
+
+# ---------------------------------------------------------------------------
+# Public API — CSV Export
+# ---------------------------------------------------------------------------
+def export_student_performance_csv(course_offering):
+    """Generate a CSV export of student performance data for a course offering.
+
+    Returns a tuple of (csv_string, filename) where:
+      - csv_string: the CSV content as a string
+      - filename: suggested filename for download
+
+    The CSV includes:
+      - Student info (name, username, email)
+      - Overall metrics (accuracy, exams taken, questions answered)
+      - Risk level
+      - Weak topics (comma-separated)
+      - Strong topics (comma-separated)
+    """
+    summaries = generate_teacher_student_overview(course_offering)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        "Student Name",
+        "Username",
+        "Email",
+        "Accuracy %",
+        "Exams Taken",
+        "Questions Answered",
+        "Risk Level",
+        "Weak Topics",
+        "Weak Topic Accuracies",
+        "Strong Topics",
+        "Strong Topic Accuracies",
+    ])
+
+    # Data rows
+    for s in summaries:
+        student = s["student"]
+        weak_topics = s.get("weak_topics", [])
+        strong_topics = s.get("strong_topics", [])
+
+        writer.writerow([
+            student.get_full_name() or student.username,
+            student.username,
+            student.email or "",
+            s["accuracy_pct"],
+            s["exams_taken"],
+            s.get("total_questions", 0),
+            s["risk_level"].upper(),
+            "; ".join(t["topic"] for t in weak_topics),
+            "; ".join(f"{t['accuracy_pct']}%" for t in weak_topics),
+            "; ".join(t["topic"] for t in strong_topics),
+            "; ".join(f"{t['accuracy_pct']}%" for t in strong_topics),
+        ])
+
+    # Generate filename
+    course_code = course_offering.course.code
+    semester = course_offering.semester.name.replace(" ", "_")
+    filename = f"{course_code}_{semester}_student_performance.csv"
+
+    return output.getvalue(), filename
+
+
+def export_topic_analysis_csv(course_offering):
+    """Generate a CSV export of topic-level analysis for a course offering.
+
+    Returns a tuple of (csv_string, filename) where:
+      - csv_string: the CSV content as a string
+      - filename: suggested filename for download
+
+    The CSV includes per-student, per-topic breakdown:
+      - Student info
+      - Topic name
+      - Questions attempted, correct, accuracy
+      - Marks earned, possible
+      - Strength level
+    """
+    from accounts.models import User
+    from exams.models import ExamAnswer
+    from .models import StudentTopicPerformance
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header row
+    writer.writerow([
+        "Student Name",
+        "Username",
+        "Topic",
+        "Questions Attempted",
+        "Correct Answers",
+        "Accuracy %",
+        "Marks Earned",
+        "Marks Possible",
+        "Score %",
+        "Strength Level",
+    ])
+
+    # Get all topic performance records for this offering
+    performances = StudentTopicPerformance.objects.filter(
+        course_offering=course_offering,
+    ).select_related("student").order_by("student__username", "topic")
+
+    for perf in performances:
+        writer.writerow([
+            perf.student.get_full_name() or perf.student.username,
+            perf.student.username,
+            perf.topic,
+            perf.total_questions,
+            perf.correct_answers,
+            perf.accuracy_pct,
+            float(perf.total_marks_earned),
+            float(perf.total_marks_possible),
+            perf.score_pct,
+            perf.strength_level.upper(),
+        ])
+
+    # Generate filename
+    course_code = course_offering.course.code
+    semester = course_offering.semester.name.replace(" ", "_")
+    filename = f"{course_code}_{semester}_topic_analysis.csv"
+
+    return output.getvalue(), filename

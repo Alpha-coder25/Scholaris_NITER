@@ -1,0 +1,13 @@
+{% for insight in insights %}
+<div class="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+  <span class="text-lg flex-shrink-0">
+    {% if '⚠️' in insight or '🔴' in insight %}⚠️
+    {% elif '✅' in insight %}✅
+    {% elif '👨‍🎓' in insight %}👨‍🎓
+    {% else %}📊{% endif %}
+  </span>
+  <p class="text-sm text-slate-700">{{ insight }}</p>
+</div>
+{% empty %}
+<p class="text-slate-500 text-sm italic">No insights available yet. Insights appear after students complete exams.</p>
+{% endfor %}

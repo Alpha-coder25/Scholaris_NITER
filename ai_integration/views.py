@@ -1,6 +1,9 @@
+from collections import defaultdict
+
 from django.contrib import messages
 from django.db import models
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
@@ -10,7 +13,11 @@ from .models import AIUsageLog, StudentTopicPerformance
 from .services import (
     analyze_student_progress,
     evaluate_cq_answer,
+    export_student_performance_csv,
+    export_topic_analysis_csv,
     generate_ai_progress_insights,
+    generate_student_recommendations,
+    generate_teacher_student_overview,
 )
 
 
@@ -79,6 +86,51 @@ def ai_insights(request, offering_id):
     )
 
 
+@role_required("teacher")
+def student_overview(request, offering_id):
+    """Teacher view showing all students' recommendation summaries.
+    Displays weak/strong topics, risk levels, and performance metrics.
+    """
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "semester", "teacher"),
+        pk=offering_id,
+        teacher=request.user,
+    )
+
+    student_summaries = generate_teacher_student_overview(offering)
+
+    # Compute aggregate stats
+    total_students = len(student_summaries)
+    high_risk = sum(1 for s in student_summaries if s["risk_level"] == "high")
+    medium_risk = sum(1 for s in student_summaries if s["risk_level"] == "medium")
+    low_risk = sum(1 for s in student_summaries if s["risk_level"] == "low")
+    no_data = sum(1 for s in student_summaries if s["risk_level"] == "no_data")
+
+    # Aggregate weak topics across all students
+    all_weak_topics = defaultdict(int)
+    for s in student_summaries:
+        for t in s["weak_topics"]:
+            all_weak_topics[t["topic"]] += 1
+    common_weak = sorted(
+        all_weak_topics.items(), key=lambda x: -x[1]
+    )[:10]
+
+    return render(
+        request,
+        "ai/student_overview.html",
+        {
+            "offering": offering,
+            "student_summaries": student_summaries,
+            "total_students": total_students,
+            "high_risk": high_risk,
+            "medium_risk": medium_risk,
+            "low_risk": low_risk,
+            "no_data": no_data,
+            "common_weak_topics": common_weak,
+        },
+    )
+
+
 @role_required("admin")
 def ai_usage_dashboard(request):
     """Admin view showing AI usage statistics across the platform."""
@@ -118,3 +170,62 @@ def ai_usage_dashboard(request):
             "feature_stats": feature_stats,
         },
     )
+
+
+@role_required("student")
+def student_recommendations(request, offering_id):
+    """AI-powered personalized study recommendations for a student.
+    Shows weak/strong topics and actionable study suggestions.
+    """
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "semester", "teacher"),
+        pk=offering_id,
+    )
+
+    # Verify enrollment
+    if not offering.enrollments.filter(student=request.user).exists():
+        messages.error(request, "You're not enrolled in this course.")
+        return redirect("dashboard:home")
+
+    recommendations = generate_student_recommendations(request.user, offering)
+
+    return render(
+        request,
+        "ai/student_recommendations.html",
+        {
+            "offering": offering,
+            "recommendations": recommendations,
+        },
+    )
+
+
+@role_required("teacher")
+def export_performance_csv(request, offering_id):
+    """Export student performance data as a CSV file."""
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "semester", "teacher"),
+        pk=offering_id,
+        teacher=request.user,
+    )
+
+    csv_content, filename = export_student_performance_csv(offering)
+
+    response = HttpResponse(csv_content, content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@role_required("teacher")
+def export_topic_csv(request, offering_id):
+    """Export topic-level analysis as a CSV file."""
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "semester", "teacher"),
+        pk=offering_id,
+        teacher=request.user,
+    )
+
+    csv_content, filename = export_topic_analysis_csv(offering)
+
+    response = HttpResponse(csv_content, content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
