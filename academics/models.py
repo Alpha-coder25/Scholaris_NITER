@@ -61,7 +61,7 @@ class Course(models.Model):
     )
     code = models.CharField(max_length=20)
     title = models.CharField(max_length=200)
-    credit_hours = models.PositiveSmallIntegerField(default=3)
+    credit_hours = models.DecimalField(max_digits=3, decimal_places=1, default=3)
 
     class Meta:
         ordering = ["semester", "code"]
