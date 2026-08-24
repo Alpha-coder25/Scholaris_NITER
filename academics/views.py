@@ -173,6 +173,177 @@ def course_offering_list(request):
     return render(request, "admin/course_offerings.html", context)
 
 
+@role_required("admin")
+def admin_enroll_students(request):
+    """Admin: enroll students (individually or by batch/group) into a course
+    offering.  Supports filtering by department, batch, and section to bulk-
+    assign an entire cohort."""
+    departments = Department.objects.all()
+    semesters = Semester.objects.all()
+    offerings = (
+        CourseOffering.objects.select_related("course", "semester", "teacher")
+        .order_by("semester__number", "course__code")
+    )
+
+    # --- Filters (persisted via GET so the form survives POST → redirect) ---
+    filter_dept = request.GET.get("filter_dept") or request.POST.get("filter_dept")
+    filter_batch = request.GET.get("filter_batch") or request.POST.get("filter_batch")
+    filter_section = request.GET.get("filter_section") or request.POST.get("filter_section")
+    filter_offering = request.GET.get("filter_offering") or request.POST.get("filter_offering")
+
+    selected_offering = CourseOffering.objects.filter(pk=filter_offering).select_related(
+        "course", "semester", "teacher"
+    ).first() if filter_offering else None
+
+    # All distinct batch values (sorted descending — newest first)
+    all_batches = (
+        User.objects.filter(role="student")
+        .values_list("batch", flat=True)
+        .distinct()
+        .order_by("-batch")
+    )
+    all_sections = (
+        User.objects.filter(role="student")
+        .values_list("section", flat=True)
+        .distinct()
+        .order_by("section")
+    )
+
+    # Build student queryset with filters
+    students_qs = (
+        User.objects.filter(role="student", is_active=True)
+        .select_related("department")
+        .order_by("batch", "department__name", "last_name", "first_name")
+    )
+    if filter_dept:
+        students_qs = students_qs.filter(department_id=filter_dept)
+    if filter_batch:
+        students_qs = students_qs.filter(batch=filter_batch)
+    if filter_section:
+        students_qs = students_qs.filter(section=filter_section)
+
+    # If an offering is selected, annotate with enrollment status
+    enrolled_student_ids = set()
+    if selected_offering:
+        enrolled_student_ids = set(
+            Enrollment.objects.filter(course_offering=selected_offering)
+            .values_list("student_id", flat=True)
+        )
+
+    students = []
+    for s in students_qs:
+        students.append({
+            "student": s,
+            "already_enrolled": s.pk in enrolled_student_ids,
+        })
+
+    # --- Handle POST actions ---
+    if request.method == "POST":
+        action = request.POST.get("action")
+        offering_id = request.POST.get("offering")
+        if not offering_id:
+            messages.error(request, "Select a course offering first.")
+            return redirect("academics:admin_enroll_students")
+
+        offering = get_object_or_404(
+            CourseOffering.objects.select_related("course", "semester"),
+            pk=offering_id,
+        )
+
+        if action == "enroll_selected":
+            # Individual checkboxes
+            student_ids = [
+                int(sid)
+                for sid in request.POST.getlist("student_ids")
+                if sid.isdigit()
+            ]
+            if not student_ids:
+                messages.error(request, "No students selected.")
+                return redirect(
+                    f"/admin/enroll-students/?filter_dept={filter_dept or ''}"
+                    f"&filter_batch={filter_batch or ''}"
+                    f"&filter_section={filter_section or ''}"
+                    f"&filter_offering={offering_id}"
+                )
+            count = 0
+            skipped = 0
+            for sid in student_ids:
+                _, created = Enrollment.objects.get_or_create(
+                    student_id=sid, course_offering=offering
+                )
+                if created:
+                    count += 1
+                else:
+                    skipped += 1
+            msg = f"Enrolled {count} student(s) into {offering.course.code}."
+            if skipped:
+                msg += f" {skipped} already enrolled (skipped)."
+            messages.success(request, msg)
+
+        elif action == "enroll_all":
+            # Enroll ALL filtered students in a single bulk operation
+            if not students:
+                messages.error(request, "No students match the current filters.")
+                return redirect(
+                    f"/admin/enroll-students/?filter_dept={filter_dept or ''}"
+                    f"&filter_batch={filter_batch or ''}"
+                    f"&filter_section={filter_section or ''}"
+                    f"&filter_offering={offering_id}"
+                )
+            # Collect student IDs that are not yet enrolled
+            new_student_ids = [
+                entry["student"].pk for entry in students
+                if not entry["already_enrolled"]
+            ]
+            skipped = len(students) - len(new_student_ids)
+            if new_student_ids:
+                new_enrollments = [
+                    Enrollment(student_id=sid, course_offering=offering)
+                    for sid in new_student_ids
+                ]
+                Enrollment.objects.bulk_create(new_enrollments, ignore_conflicts=True)
+            count = len(new_student_ids)
+            msg = f"Batch-enrolled {count} student(s) into {offering.course.code}."
+            if skipped:
+                msg += f" {skipped} already enrolled (skipped)."
+            messages.success(request, msg)
+
+        elif action == "unenroll_selected":
+            student_ids = [
+                int(sid)
+                for sid in request.POST.getlist("student_ids")
+                if sid.isdigit()
+            ]
+            if not student_ids:
+                messages.error(request, "No students selected.")
+            else:
+                deleted, _ = Enrollment.objects.filter(
+                    student_id__in=student_ids, course_offering=offering
+                ).delete()
+                messages.success(request, f"Removed {deleted} student(s) from {offering.course.code}.")
+
+        return redirect(
+            f"/admin/enroll-students/?filter_dept={filter_dept or ''}"
+            f"&filter_batch={filter_batch or ''}"
+            f"&filter_section={filter_section or ''}"
+            f"&filter_offering={offering_id}"
+        )
+
+    context = {
+        "departments": departments,
+        "semesters": semesters,
+        "offerings": offerings,
+        "selected_offering": selected_offering,
+        "students": students,
+        "filter_dept": filter_dept or "",
+        "filter_batch": filter_batch or "",
+        "filter_section": filter_section or "",
+        "all_batches": all_batches,
+        "all_sections": all_sections,
+    }
+    return render(request, "admin/enroll_students.html", context)
+
+
 @role_required("student")
 def enroll(request):
     """Student: browse open offerings and enrol."""

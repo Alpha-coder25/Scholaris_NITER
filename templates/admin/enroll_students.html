@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Enroll Students{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-extrabold text-slate-900">📋 Enroll Students</h1>
+    <p class="text-slate-600 mt-1">Assign students to a course offering — individually or by batch/group.</p>
+  </div>
+
+  <!-- Step 1: Select Course Offering + Filters -->
+  <form method="get" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <h2 class="font-bold text-slate-800 mb-4">1. Select course offering &amp; filter students</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Offering -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Course Offering</label>
+        <select name="filter_offering" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-violet-500">
+          <option value="">— Select offering —</option>
+          {% for o in offerings %}
+          <option value="{{ o.pk }}" {% if selected_offering and o.pk == selected_offering.pk %}selected{% endif %}>
+            {{ o.course.code }} · {{ o.course.title }} — {{ o.semester.name }} (Sec {{ o.section }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <!-- Department -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Department</label>
+        <select name="filter_dept" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-violet-500">
+          <option value="">— All departments —</option>
+          {% for d in departments %}
+          <option value="{{ d.pk }}" {% if filter_dept == d.pk|stringformat:"d" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <!-- Batch -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Batch (Admission Year)</label>
+        <select name="filter_batch" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-violet-500">
+          <option value="">— All batches —</option>
+          {% for b in all_batches %}
+          <option value="{{ b }}" {% if filter_batch == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <!-- Section -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-600 mb-1">Section</label>
+        <select name="filter_section" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-violet-500">
+          <option value="">— All sections —</option>
+          {% for s in all_sections %}
+          {% if s %}
+          <option value="{{ s }}" {% if filter_section == s %}selected{% endif %}>{{ s }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="mt-4 px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-bold text-sm">
+      Apply filters
+    </button>
+  </form>
+
+  {% if selected_offering %}
+  <!-- Info banner -->
+  <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-center gap-3">
+    <span class="text-2xl">📚</span>
+    <div>
+      <div class="font-bold text-violet-800">
+        {{ selected_offering.course.code }} · {{ selected_offering.course.title }}
+      </div>
+      <div class="text-sm text-violet-600">
+        {{ selected_offering.semester.name }} · Section {{ selected_offering.section }} · Teacher: {{ selected_offering.teacher.get_full_name|default:selected_offering.teacher.username }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Student list + actions -->
+  <form method="post" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    {% csrf_token %}
+    <input type="hidden" name="offering" value="{{ selected_offering.pk }}">
+    <input type="hidden" name="filter_dept" value="{{ filter_dept }}">
+    <input type="hidden" name="filter_batch" value="{{ filter_batch }}">
+    <input type="hidden" name="filter_section" value="{{ filter_section }}">
+    <input type="hidden" name="filter_offering" value="{{ selected_offering.pk }}">
+
+    <!-- Action bar -->
+    <div class="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div class="font-bold text-slate-800">
+        Students <span class="text-slate-500 font-normal">({{ students|length }}{% if filter_dept or filter_batch or filter_section %} filtered{% endif %})</span>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" id="select-all-btn" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
+          Select all
+        </button>
+        <button type="button" id="deselect-all-btn" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">
+          Deselect all
+        </button>
+        <button type="submit" name="action" value="enroll_selected" class="px-4 py-2 rounded-lg bg-violet-700 hover:bg-violet-800 text-white font-bold text-sm">
+          ✅ Enroll selected
+        </button>
+        <button type="submit" name="action" value="enroll_all" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm"
+          onclick="return confirm('Enroll ALL {{ students|length }} filtered students into {{ selected_offering.course.code }}?')">
+          🚀 Batch enroll all
+        </button>
+        <button type="submit" name="action" value="unenroll_selected" class="px-4 py-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 font-semibold text-sm"
+          onclick="return confirm('Remove selected students from this course?')">
+          🗑️ Unenroll selected
+        </button>
+      </div>
+    </div>
+
+    <!-- Student table -->
+    {% if students %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="px-6 py-3 text-left font-semibold w-10">
+              <input type="checkbox" id="check-all" class="rounded border-slate-300 text-violet-600 focus:ring-violet-500">
+            </th>
+            <th class="px-6 py-3 text-left font-semibold">Name</th>
+            <th class="px-6 py-3 text-left font-semibold">Username</th>
+            <th class="px-6 py-3 text-left font-semibold">Student ID</th>
+            <th class="px-6 py-3 text-left font-semibold">Department</th>
+            <th class="px-6 py-3 text-left font-semibold">Batch</th>
+            <th class="px-6 py-3 text-left font-semibold">Section</th>
+            <th class="px-6 py-3 text-center font-semibold">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for entry in students %}
+          <tr class="hover:bg-slate-50 {% if entry.already_enrolled %}bg-emerald-50/50{% endif %}">
+            <td class="px-6 py-3">
+              <input type="checkbox" name="student_ids" value="{{ entry.student.pk }}"
+                class="student-cb rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                {% if entry.already_enrolled %}disabled{% endif %}>
+            </td>
+            <td class="px-6 py-3 font-medium text-slate-800">{{ entry.student.get_full_name|default:entry.student.username }}</td>
+            <td class="px-6 py-3 text-slate-600">{{ entry.student.username }}</td>
+            <td class="px-6 py-3 text-slate-600">{{ entry.student.student_id_no|default:"—" }}</td>
+            <td class="px-6 py-3 text-slate-600">{{ entry.student.department|default:"—" }}</td>
+            <td class="px-6 py-3 text-slate-600">{{ entry.student.batch|default:"—" }}</td>
+            <td class="px-6 py-3 text-slate-600">{{ entry.student.section|default:"—" }}</td>
+            <td class="px-6 py-3 text-center">
+              {% if entry.already_enrolled %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Enrolled</span>
+              {% else %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Not enrolled</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center text-slate-500">
+      {% if filter_dept or filter_batch or filter_section %}
+        <p class="text-sm">No students match the selected filters. Try broadening your search.</p>
+      {% else %}
+        <p class="text-sm">No active students in the system yet.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </form>
+  {% endif %}
+</div>
+
+<script>
+  const checkAll = document.getElementById('check-all');
+  const selectAllBtn = document.getElementById('select-all-btn');
+  const deselectAllBtn = document.getElementById('deselect-all-btn');
+  const cbs = () => document.querySelectorAll('.student-cb:not(:disabled)');
+
+  if (checkAll) {
+    checkAll.addEventListener('change', () => {
+      cbs().forEach(cb => cb.checked = checkAll.checked);
+    });
+  }
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      cbs().forEach(cb => cb.checked = true);
+      if (checkAll) checkAll.checked = true;
+    });
+  }
+  if (deselectAllBtn) {
+    deselectAllBtn.addEventListener('click', () => {
+      cbs().forEach(cb => cb.checked = false);
+      if (checkAll) checkAll.checked = false;
+    });
+  }
+</script>
+{% endblock %}
