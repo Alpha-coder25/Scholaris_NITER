@@ -126,6 +126,9 @@ class Enrollment(models.Model):
         CourseOffering, on_delete=models.CASCADE, related_name="enrollments"
     )
     registered_at = models.DateTimeField(auto_now_add=True)
+    suspended = models.BooleanField(default=False)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    suspended_reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
         unique_together = ("student", "course_offering")

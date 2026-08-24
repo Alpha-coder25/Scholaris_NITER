@@ -344,6 +344,68 @@ def admin_enroll_students(request):
     return render(request, "admin/enroll_students.html", context)
 
 
+@role_required("teacher")
+def teacher_manage_students(request, offering_id):
+    """Teacher: view enrolled students and suspend/unsuspend individual students
+    from their course."""
+    offering = get_object_or_404(
+        CourseOffering.objects.select_related("course", "semester", "teacher"),
+        pk=offering_id,
+        teacher=request.user,
+    )
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        enrollment_id = request.POST.get("enrollment_id")
+        if enrollment_id:
+            enrollment = get_object_or_404(
+                Enrollment, pk=enrollment_id, course_offering=offering
+            )
+            if action == "suspend":
+                reason = request.POST.get("reason", "").strip()
+                enrollment.suspended = True
+                from django.utils import timezone
+                enrollment.suspended_at = timezone.now()
+                enrollment.suspended_reason = reason
+                enrollment.save()
+                messages.success(
+                    request,
+                    f"{enrollment.student.get_full_name() or enrollment.student.username} "
+                    f"has been suspended from {offering.course.code}.",
+                )
+            elif action == "unsuspend":
+                enrollment.suspended = False
+                enrollment.suspended_at = None
+                enrollment.suspended_reason = ""
+                enrollment.save()
+                messages.success(
+                    request,
+                    f"{enrollment.student.get_full_name() or enrollment.student.username} "
+                    f"has been unsuspended from {offering.course.code}.",
+                )
+        return redirect("academics:teacher_manage_students", offering_id=offering.pk)
+
+    enrollments = (
+        Enrollment.objects.filter(course_offering=offering)
+        .select_related("student", "student__department")
+        .order_by("student__first_name", "student__username")
+    )
+
+    suspended_count = enrollments.filter(suspended=True).count()
+    active_count = enrollments.filter(suspended=False).count()
+
+    return render(
+        request,
+        "teacher/manage_students.html",
+        {
+            "offering": offering,
+            "enrollments": enrollments,
+            "suspended_count": suspended_count,
+            "active_count": active_count,
+        },
+    )
+
+
 @role_required("student")
 def enroll(request):
     """Student: browse open offerings and enrol."""

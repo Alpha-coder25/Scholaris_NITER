@@ -374,9 +374,12 @@ def exam_take(request, exam_id):
         pk=exam_id,
     )
     offering = exam.course_offering
-    enrolled = offering.enrollments.filter(student=request.user).exists()
-    if not enrolled:
+    enrollment = offering.enrollments.filter(student=request.user).first()
+    if not enrollment:
         messages.error(request, "You're not enrolled in this course.")
+        return redirect("dashboard:home")
+    if enrollment.suspended:
+        messages.error(request, "Your enrollment in this course has been suspended. Contact your instructor.")
         return redirect("dashboard:home")
 
     attempt = _get_attempt_for_student(exam, request.user)

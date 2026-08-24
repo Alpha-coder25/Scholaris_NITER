@@ -29,6 +29,10 @@ def upload(request, offering_id):
             messages.error(request, "Provide both a title and a file.")
             return redirect("materials:upload", offering_id=offering.pk)
 
+        # Extract text first, then seek back so Django can still save the file
+        content_text = extract_text(file)
+        file.seek(0)
+
         last_version = (
             offering.materials.filter(title=title).order_by("-version").first()
         )
@@ -39,7 +43,7 @@ def upload(request, offering_id):
             title=title,
             file=file,
             version=version,
-            content_text=extract_text(file),
+            content_text=content_text,
         )
         messages.success(
             request,
