@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     # Third party
     "rest_framework",
+    "storages",
     # Scholaris apps
     "accounts",
     "academics",
@@ -57,6 +58,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -141,6 +143,50 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# ---------------------------------------------------------------------------
+# Cloud storage (AWS S3 / S3-compatible) for file uploads in production.
+# When AWS_STORAGE_BUCKET_NAME is set, files are stored on S3; otherwise the
+# local MEDIA_ROOT filesystem is used (fine for development).
+# ---------------------------------------------------------------------------
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", "")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", "")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", "us-east-1")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", "")
+AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", "")
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None  # Use bucket default (private)
+AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "max-age=86400"}
+
+if AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID:
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    # Public-read ACL for course materials so students can download them.
+    # Override the default storage to serve files publicly.
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "acl": "public-read",
+            },
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+    else:
+        MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 # ---------------------------------------------------------------------------
 # DRF (used for the JSON exam-take API)
